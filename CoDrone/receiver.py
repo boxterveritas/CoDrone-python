@@ -1,8 +1,8 @@
 import time
 
-from CoDrone.crc import CRC16
+from crc import CRC16
 
-from CoDrone.protocol import *
+from protocol import *
 
 
 

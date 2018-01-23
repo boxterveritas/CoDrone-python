@@ -1,6 +1,6 @@
 from CoDrone.system import *
 
-from CoDrone.protocol import *
+from protocol import *
 
 
 # EventHandler

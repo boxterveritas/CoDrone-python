@@ -6,12 +6,13 @@ from time import sleep
 import colorama
 import serial
 from colorama import Fore, Back, Style
-from CoDrone.crc import *
-from CoDrone.receiver import *
 from serial.tools.list_ports import comports
-from CoDrone.system import *
+from system import *
+from protocol import *
+from crc import *
+from receiver import *
 
-from CoDrone.storage import *
+from storage import *
 
 
 def convertByteArrayToString(dataArray):
@@ -42,6 +43,7 @@ class CoDrone:
         self._flagThreadRun = False
 
         self._receiver = Receiver()
+        self._control = Control()
 
         self._flagCheckBackground = flagCheckBackground
 
@@ -56,7 +58,7 @@ class CoDrone:
         self._storageCount = StorageCount()
         self._parser = Parser()
 
-        self._devices = []          # when using auto connect, save search list
+        self._devices = []  # when using auto connect, save search list
         self._flagDiscover = False  # when using auto connect, notice is discover
         self._flagConnected = False  # when using auto connect, notice connection with device
         self.timeStartProgram = time.time()  # record program starting time
@@ -68,13 +70,11 @@ class CoDrone:
 
     def _receiving(self):
         while self._flagThreadRun:
-
             self._bufferQueue.put(self._serialport.read())
             # auto-update when background check for receive data is on
             if self._flagCheckBackground == True:
                 while self.check() != DataType.None_:
                     pass
-
                     # sleep(0.001)
 
     def isOpen(self):
@@ -175,7 +175,6 @@ class CoDrone:
             if (dataArray != None) and (len(dataArray) > 0):
                 # print receive data
                 self._printReceiveData(dataArray)
-
                 self._bufferHandler.extend(dataArray)
 
         while len(self._bufferHandler) > 0:
@@ -261,7 +260,7 @@ class CoDrone:
 
         # process LinkDiscoveredDevice separately(add list of searched device)
         if (header.dataType == DataType.LinkDiscoveredDevice) and (
-            self._storage.d[DataType.LinkDiscoveredDevice] != None):
+                    self._storage.d[DataType.LinkDiscoveredDevice] != None):
             self._eventLinkDiscoveredDevice(self._storage.d[DataType.LinkDiscoveredDevice])
 
         # complete data process
@@ -277,20 +276,18 @@ class CoDrone:
 
     def _runEventHandler(self, dataType):
         if (isinstance(dataType, DataType)) and (self._eventHandler.d[dataType] != None) and (
-            self._storage.d[dataType] != None):
+                    self._storage.d[dataType] != None):
             return self._eventHandler.d[dataType](self._storage.d[dataType])
         else:
             return None
 
     def setEventHandler(self, dataType, eventHandler):
-
         if (not isinstance(dataType, DataType)):
             return
 
         self._eventHandler.d[dataType] = eventHandler
 
     def getHeader(self, dataType):
-
         if (not isinstance(dataType, DataType)):
             return None
 
@@ -401,11 +398,9 @@ class CoDrone:
                     if self._flagConnected:
                         break
 
-                # 연결된 후 1.2초를 추가로 기다림
                 sleep(1.2)
 
             else:
-                # 오류 출력
                 self._printError("Could not find PETRONE.")
 
         else:
@@ -435,15 +430,12 @@ class CoDrone:
                         sleep(1.2)
 
                     else:
-                        # 오류 출력
                         self._printError("Could not find " + deviceName + ".")
 
                 else:
-                    # 오류 출력
                     self._printError("Device name length error(" + deviceName + ").")
 
             else:
-                # 오류 출력
                 self._printError("Could not find PETRONE.")
 
         return self._flagConnected
@@ -485,7 +477,7 @@ class CoDrone:
 
 
 
-            # Common Start
+    # Common Start
 
     def sendPing(self):
 
@@ -516,14 +508,153 @@ class CoDrone:
 
         return self.transfer(header, data)
 
-    # Common Start
+    # Common End
 
 
 
-    # Control Start
+    ### Control ------------
+    def sendControl(self, roll, pitch, yaw, throttle):
+        header = Header()
+
+        header.dataType = DataType.Control
+        header.length = Control.getSize()
+
+        control = Control()
+        control.setAll(roll,pitch,yaw,throttle)
+
+        return self.transfer(header, control)
+
+    def sendControlDuration(self, roll, pitch, yaw, throttle, duration):
+        timeStart = time.time()
+        header = Header()
+
+        header.dataType = DataType.Control
+        header.length = Control.getSize()
+
+        control = Control()
+        control.setAll(roll, pitch, yaw, throttle)
+
+        while (time.time() - timeStart) < duration:
+            self.transfer(header, control)
+            sleep(0.02)
+        control.setAll(0,0,0,0)
+        return self.transfer(header, control)
+    ### Control End ---------
 
 
-    def sendTakeOff(self):
+    ### FLIGHT VARIABLES ----------
+
+    def setRoll(self, roll):
+        self._control.roll = roll
+
+    def setPitch(self, pitch):
+        self._control.pitch = pitch
+
+    def setYaw(self, yaw):
+        self._control.yaw = yaw
+
+    def setThrottle(self, throttle):
+        self._control.throttle = throttle
+
+    def getRoll(self):
+        return self._control.roll
+
+    def getPitch(self):
+        return self._control.pitch
+
+    def getYaw(self):
+        return self._control.yaw
+
+    def getThrottle(self):
+        return self._control.throttle
+
+    def trim(self, roll, pitch, yaw, throttle):
+        header = Header()
+
+        header.dataType = DataType.TrimFlight
+        header.length = TrimFlight.getSize()
+
+        data = TrimFlight()
+        data.setAll(roll, pitch, yaw, throttle)
+
+        return self.transfer(header, data)
+
+    def resetTrim(self, power):
+        self.trim(0, 0, 0, power)
+        ##TO DO##
+        ## is it right..?
+        pass
+
+    ### FLIGHT VARIABLES ------------- END
+
+
+    ### FLIGHT COMMANDS --------------
+
+    def go(self, roll=None, pitch=None, yaw=None, throttle=None, duration=None):
+        timeStart = time.time()
+
+        # go()
+        if roll is None and duration is None:
+            return self.sendControl(*self._control.getAll())
+
+        # go(duration)
+        elif pitch is None:
+            duration = duration or roll
+            return self.sendControlDuration(*self._control.getAll(),duration)
+
+        # go(roll, pitch, yaw, throttle)
+        elif duration is None:
+            return self.sendControl(roll,pitch,yaw,throttle)
+
+        # go(roll, pitch, yaw, throttle, duration)
+        else:
+            return self.sendControlDuration(roll,pitch,yaw,throttle,duration)
+
+    def goDirection(self, direction, power=50, duration=None):
+        dir = direction[0].lower()
+
+        #string matching : forward/backward , right/left, up/down
+        pitch = ((dir == "f") - (dir == "b")) * power
+        roll = ((dir == "r") - (dir == "l")) * power
+        throttle = ((dir == "u") - (dir == "d")) * power
+        if duration is None:
+            return self.sendControl(roll, pitch, 0, throttle)
+        return self.sendControlDuration(roll,pitch,0,throttle, duration)
+
+    def turn(self, direction, power=50, duration=None):
+        dir = direction[0].lower()
+
+        yaw = ((dir == "r") - (dir == "l")) * power
+        if (duration is None):
+            return self.sendControl(0, 0, yaw, 0)
+        return self.sendControlDuration(0, 0, yaw, 0, duration)
+
+    def turnDegree(self):
+        ### TO DO ###
+        pass
+
+    def rotate90(self):
+        ### TO DO ###
+        pass
+
+    def rotate180(self):
+        ### TO DO ###
+        pass
+
+    def rotate360(self):
+        ### TO DO ###
+        pass
+
+    def goToHeight(self,height):
+        ### TO DO ###
+        pass
+
+    ### FLIGHT COMMANDS -----------------------END
+
+
+    ### FLIGHT EVENTS -----------------------
+
+    def takeoff(self):
 
         header = Header()
 
@@ -535,9 +666,11 @@ class CoDrone:
         data.commandType = CommandType.FlightEvent
         data.option = FlightEvent.TakeOff.value
 
-        return self.transfer(header, data)
+        self.transfer(header, data)
+        sleep(5)
 
-    def sendLanding(self):
+    def land(self):
+        self._control.setAll(0, 0, 0, 0)
 
         header = Header()
 
@@ -551,7 +684,8 @@ class CoDrone:
 
         return self.transfer(header, data)
 
-    def sendStop(self):
+    def emergencyStop(self):
+        self._control.setAll(0, 0, 0, 0)
 
         header = Header()
 
@@ -565,81 +699,82 @@ class CoDrone:
 
         return self.transfer(header, data)
 
-    def sendControl(self, roll, pitch, yaw, throttle):
-
-        if ((not isinstance(roll, int)) or (not isinstance(pitch, int)) or (not isinstance(yaw, int)) or (
-        not isinstance(throttle, int))):
-            return None
-
-        header = Header()
-
-        header.dataType = DataType.Control
-        header.length = Control.getSize()
-
-        data = Control()
-
-        data.roll = roll
-        data.pitch = pitch
-        data.yaw = yaw
-        data.throttle = throttle
-
-        return self.transfer(header, data)
-
-    def sendControlWhile(self, roll, pitch, yaw, throttle, timeMs):
-
-        if ((not isinstance(roll, int)) or (not isinstance(pitch, int)) or (not isinstance(yaw, int)) or (
-        not isinstance(throttle, int))):
-            return None
-
-        timeSec = timeMs / 1000
-        timeStart = time.time()
-
-        while ((time.time() - timeStart) < timeSec):
-            self.sendControl(roll, pitch, yaw, throttle)
-            sleep(0.02)
-
-        return self.sendControl(roll, pitch, yaw, throttle)
-
-    def sendControlDrive(self, wheel, accel):
-
-        if ((not isinstance(wheel, int)) or (not isinstance(accel, int))):
-            return None
-
-        header = Header()
-
-        header.dataType = DataType.Control
-        header.length = Control.getSize()
-
-        data = Control()
-
-        data.roll = accel
-        data.pitch = 0
-        data.yaw = 0
-        data.throttle = wheel
-
-        return self.transfer(header, data)
-
-    def sendControlDriveWhile(self, wheel, accel, timeMs):
-
-        if ((not isinstance(wheel, int)) or (not isinstance(accel, int))):
-            return None
-
-        timeSec = timeMs / 1000
-        timeStart = time.time()
-
-        while ((time.time() - timeStart) < timeSec):
-            self.sendControlDrive(wheel, accel)
-            sleep(0.02)
-
-        return self.sendControlDrive(wheel, accel)
-
-    # Control End
+    ### FLIGHT EVENTS ------------------ END
 
 
+    ### SENSORS & STATUS ---------------
+    def getHeight(self):
+        ##TO DO##
+        pass
+
+    def getPressure(self):
+        ##TO DO##
+        pass
+
+    def getTemperature(self):
+        ##TO DO##
+        pass
+
+    def getAngles(self):
+        ##TO DO##
+        pass
+
+    def getAccelerometer(self):
+        ##TO DO##
+        pass
+
+    def getState(self):
+        ##TO DO##
+        pass
+
+    def getBatteryPercentage(self):
+        ##TO DO##
+        pass
+
+    def getTrim(self):
+        ##TO DO##
+        pass
+
+    ### SENSORS & STATUS --------------- END
+
+
+    ### LEDS -----------
+
+    def setArmColor(self):
+        ##TO DO##
+        pass
+
+    def setArmRGB(self):
+        ##TO DO##
+        pass
+
+    def setEyeColor(self):
+        ##TO DO##
+        pass
+
+    def setEyeRGB(self):
+        ##TO DO##
+        pass
+
+    def setLEDMode(self):
+        ##TO DO##
+        pass
+
+    def resetLED(self):
+        ##TO DO##
+        pass
+
+    def flash(self):
+        ##TO DO##
+        pass
+
+    def setLEDto(self):
+        ##TO DO##
+        pass
+
+    ### LEDS ----------- END
 
     # Setup Start
-
-
     def sendCommand(self, commandType, option=0):
 
         if ((not isinstance(commandType, CommandType)) or (not isinstance(option, int))):
@@ -705,26 +840,6 @@ class CoDrone:
 
         data.commandType = CommandType.Trim
         data.option = trim.value
-
-        return self.transfer(header, data)
-
-    def sendTrimFlight(self, roll, pitch, yaw, throttle):
-
-        if ((not isinstance(roll, int)) or (not isinstance(pitch, int)) or (not isinstance(yaw, int)) or (
-        not isinstance(throttle, int))):
-            return None
-
-        header = Header()
-
-        header.dataType = DataType.TrimFlight
-        header.length = TrimFlight.getSize()
-
-        data = TrimFlight()
-
-        data.roll = roll
-        data.pitch = pitch
-        data.yaw = yaw
-        data.throttle = throttle
 
         return self.transfer(header, data)
 
@@ -824,6 +939,43 @@ class CoDrone:
 
     # Setup End
 
+
+    # Command Start
+
+    def sendControlWhile(self, roll, pitch, yaw, throttle, timeMs):
+        timeSec = timeMs / 1000
+        timeStart = time.time()
+
+        while ((time.time() - timeStart) < timeSec):
+            self.sendControl(roll, pitch, yaw, throttle)
+            sleep(0.02)
+
+        return self.sendControl(roll, pitch, yaw, throttle)
+
+    def sendControlDrive(self, wheel, accel):
+        header = Header()
+
+        header.dataType = DataType.Control
+        header.length = Control.getSize()
+
+        self._control.roll = accel
+        self._control.pitch = 0
+        self._control.yaw = 0
+        self._control.throttle = wheel
+
+        return self.transfer(header, self._control)
+
+    def sendControlDriveWhile(self, wheel, accel, timeMs):
+        timeSec = timeMs / 1000
+        timeStart = time.time()
+
+        while ((time.time() - timeStart) < timeSec):
+            self.sendControlDrive(wheel, accel)
+            sleep(0.02)
+
+        return self.sendControlDrive(wheel, accel)
+
+    # Command End
 
 
     # Device Start

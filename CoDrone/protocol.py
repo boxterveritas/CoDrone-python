@@ -243,7 +243,6 @@ class Ack(ISerializable):
 
         return data
 
-
 class Request(ISerializable):
     def __init__(self):
         self.dataType = DataType.None_
@@ -267,7 +266,6 @@ class Request(ISerializable):
 
         return data
 
-
 class Passcode(ISerializable):
     def __init__(self):
         self.passcode = 0
@@ -290,13 +288,70 @@ class Passcode(ISerializable):
 
         return data
 
-
-class Control(ISerializable):
+class Move():
     def __init__(self):
-        self.roll = 0
-        self.pitch = 0
-        self.yaw = 0
-        self.throttle = 0
+        self._roll = 0
+        self._pitch = 0
+        self._yaw = 0
+        self._throttle = 0
+
+    def _checkValue(self,value):
+        try:
+            value = int(value)
+        except ValueError as err:
+            raise ValueError('only integer values are permitted') from err
+
+        if value > 100:
+            raise ValueError('only under 100 values are permitted')
+        elif value < -100:
+            raise ValueError('only over -100 values are permitted')
+        return value
+
+    def getAll(self):
+        return self._roll,self._pitch, self._yaw, self._throttle
+
+    def setAll(self, roll, pitch, yaw, throttle):
+        self._roll = self._checkValue(roll)
+        self._pitch = self._checkValue(pitch)
+        self._yaw = self._checkValue(yaw)
+        self._throttle = self._checkValue(throttle)
+
+    @property
+    def roll(self):
+        return self._roll
+
+    @roll.setter
+    def roll(self, value):
+        self._roll = self._checkValue(value)
+
+    @property
+    def pitch(self):
+        return self._pitch
+
+    @pitch.setter
+    def pitch(self, value):
+        self._pitch = self._checkValue(value)
+
+    @property
+    def yaw(self):
+        return self._yaw
+
+    @yaw.setter
+    def yaw(self, value):
+        self._yaw = self._checkValue(value)
+
+    @property
+    def throttle(self):
+        return self._throttle
+
+    @throttle.setter
+    def throttle(self, value):
+        self._throttle = self._checkValue(value)
+
+
+class Control(ISerializable, Move):
+    def __init__(self):
+        Move.__init__(self)
 
     @classmethod
     def getSize(cls):
@@ -1114,12 +1169,9 @@ class GyroBias(Attitude):
     pass
 
 
-class TrimFlight(ISerializable):
+class TrimFlight(ISerializable, Move):
     def __init__(self):
-        self.roll = 0
-        self.pitch = 0
-        self.yaw = 0
-        self.throttle = 0
+        Move.__init__(self)
 
     @classmethod
     def getSize(cls):
@@ -1867,4 +1919,3 @@ class Message():
         return data
 
 # Message End
-
