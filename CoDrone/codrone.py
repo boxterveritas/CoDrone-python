@@ -27,6 +27,29 @@ def convertByteArrayToString(dataArray):
 
     return string
 
+class Data:
+    def __init__(self):
+        self.address = 0
+        self.attitude = 0
+        self.battery = 0
+        self.pressure = 0
+        self.temperature = 0
+        self.range = 0
+        self.state = 0
+
+    def eventUpdateAddress(self, data):
+        self.address = data.address
+    def eventUpdateAttitude(self, data):
+        self.attitude = data.roll, data.pitch, data.yaw
+    def eventUpdateBattery(self, data):
+        self.battery = data.batteryPercent
+    def eventUpdatePressure(self, data):
+        self.pressure = data.pressure
+        self.temperature = data.temperature
+    def eventUpdateRange(self, data):
+        self.range = data.bottom
+    def eventUpdateState(self, data):
+        self.state = data.modeFlight
 
 class CoDrone:
     # BaseFunctions Start
@@ -53,6 +76,9 @@ class CoDrone:
         self._flagShowReceiveData = flagShowReceiveData
 
         self._eventHandler = EventHandler()
+        self._data = Data()
+        self._setAllEventHandler()
+
         self._storageHeader = StorageHeader()
         self._storage = Storage()
         self._storageCount = StorageCount()
@@ -271,7 +297,7 @@ class CoDrone:
     def _runHandler(self, header, dataArray):
         if self._parser.d[header.dataType] != None:
             self._storageHeader.d[header.dataType] = header
-            self._storage.d[header.dataType] = self._parser.d[header.dataType](dataArray);
+            self._storage.d[header.dataType] = self._parser.d[header.dataType](dataArray)
             self._storageCount.d[header.dataType] += 1
 
     def _runEventHandler(self, dataType):
@@ -280,6 +306,16 @@ class CoDrone:
             return self._eventHandler.d[dataType](self._storage.d[dataType])
         else:
             return None
+
+    def _setAllEventHandler(self):
+        self._eventHandler.d[Address] = self._data.eventUpdateAddress
+        self._eventHandler.d[Attitude] = self._data.eventUpdateAttitude
+        self._eventHandler.d[Battery] = self._data.eventUpdateBattery
+        self._eventHandler.d[Pressure] = self._data.eventUpdatePressure
+        self._eventHandler.d[Range] = self._data.eventUpdateRange
+        self._eventHandler.d[State] = self._data.eventUpdateState
+        #self._eventHandler.d[Temperature] = eventUpdateTemperature
+        #self._eventHandler.d[TrimAll] = eventUpdateTrimAll
 
     def setEventHandler(self, dataType, eventHandler):
         if (not isinstance(dataType, DataType)):
@@ -525,6 +561,9 @@ class CoDrone:
         return self.transfer(header, control)
 
     def sendControlDuration(self, roll, pitch, yaw, throttle, duration):
+        if(duration == 0):
+            return self.sendControl(roll,pitch, yaw,throttle)
+
         timeStart = time.time()
         header = Header()
 
@@ -544,17 +583,17 @@ class CoDrone:
 
     ### FLIGHT VARIABLES ----------
 
-    def setRoll(self, roll):
-        self._control.roll = roll
+    def setRoll(self, power):
+        self._control.roll = power
 
-    def setPitch(self, pitch):
-        self._control.pitch = pitch
+    def setPitch(self, power):
+        self._control.pitch = power
 
-    def setYaw(self, yaw):
-        self._control.yaw = yaw
+    def setYaw(self, power):
+        self._control.yaw = power
 
-    def setThrottle(self, throttle):
-        self._control.throttle = throttle
+    def setThrottle(self, power):
+        self._control.throttle = power
 
     def getRoll(self):
         return self._control.roll
@@ -580,51 +619,52 @@ class CoDrone:
         return self.transfer(header, data)
 
     def resetTrim(self, power):
-        self.trim(0, 0, 0, power)
-        ##TO DO##
-        ## is it right..?
-        pass
+        header = Header()
+
+        header.dataType = DataType.TrimFlight
+        header.length = TrimFlight.getSize()
+
+        data = TrimFlight()
+        data.setAll(0, 0, 0, power)
+
+        return self.transfer(header, data)
 
     ### FLIGHT VARIABLES ------------- END
 
 
     ### FLIGHT COMMANDS --------------
 
-    def go(self, roll=None, pitch=None, yaw=None, throttle=None, duration=None):
-        timeStart = time.time()
-
-        # go()
-        if roll is None and duration is None:
-            return self.sendControl(*self._control.getAll())
-
-        # go(duration)
-        elif pitch is None:
-            duration = duration or roll
-            return self.sendControlDuration(*self._control.getAll(),duration)
-
-        # go(roll, pitch, yaw, throttle)
-        elif duration is None:
-            return self.sendControl(roll,pitch,yaw,throttle)
-
-        # go(roll, pitch, yaw, throttle, duration)
-        else:
-            return self.sendControlDuration(roll,pitch,yaw,throttle,duration)
-
-    def goDirection(self, direction, power=50, duration=None):
-        dir = direction[0].lower()
-
-        #string matching : forward/backward , right/left, up/down
-        pitch = ((dir == "f") - (dir == "b")) * power
-        roll = ((dir == "r") - (dir == "l")) * power
-        throttle = ((dir == "u") - (dir == "d")) * power
+    def move(self, duration = None, roll = None, pitch = None, yaw = None, throttle = None):
+        # move()
         if duration is None:
-            return self.sendControl(roll, pitch, 0, throttle)
-        return self.sendControlDuration(roll,pitch,0,throttle, duration)
+            self.sendControl(*self._control.getAll())
 
-    def turn(self, direction, power=50, duration=None):
-        dir = direction[0].lower()
+        # move(duration)
+        elif throttle is None:
+            self.sendControlDuration(*self._control.getAll(), duration)
 
-        yaw = ((dir == "r") - (dir == "l")) * power
+        # move(duration, roll, pitch, yaw, throttle)
+        else:
+            self._control.setAll(roll,pitch,yaw,throttle)
+            self.sendControlDuration(*self._control.getAll(), duration)
+
+        return self._control.roll
+
+    def go(self, direction, duration = 0.5, power = 50):
+        direction = direction[0].lower()
+
+        # string matching : forward/backward , right/left, up/down
+        pitch = ((direction == "f") - (direction == "b")) * power
+        roll = ((direction == "r") - (direction == "l")) * power
+        yaw = 0
+        throttle = ((direction == "u") - (direction == "d")) * power
+
+        self.sendControlDuration(roll,pitch,yaw,throttle,duration)
+
+    def turn(self, direction, duration=None, power=50):
+        direction = direction[0].lower()
+
+        yaw = ((direction == "r") - (direction == "l")) * power
         if (duration is None):
             return self.sendControl(0, 0, yaw, 0)
         return self.sendControlDuration(0, 0, yaw, 0, duration)
@@ -682,7 +722,7 @@ class CoDrone:
         data.commandType = CommandType.FlightEvent
         data.option = FlightEvent.Landing.value
 
-        return self.transfer(header, data)
+        self.transfer(header, data)
 
     def emergencyStop(self):
         self._control.setAll(0, 0, 0, 0)
@@ -697,7 +737,7 @@ class CoDrone:
         data.commandType = CommandType.Stop
         data.option = 0
 
-        return self.transfer(header, data)
+        self.transfer(header, data)
 
     ### FLIGHT EVENTS ------------------ END
 
