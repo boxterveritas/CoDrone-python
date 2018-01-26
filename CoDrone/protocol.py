@@ -1,6 +1,6 @@
 import abc
 from struct import *
-from CoDrone.system import *
+from system import *
 
 
 # ISerializable Start
@@ -358,7 +358,7 @@ class Control(ISerializable, Move):
         return 4
 
     def toArray(self):
-        return pack('<bbbb', self.roll, self.pitch, self.yaw, self.throttle)
+        return pack('<bbbb', self._roll, self._pitch, self._yaw, self._throttle)
 
     @classmethod
     def parse(cls, dataArray):
@@ -367,7 +367,7 @@ class Control(ISerializable, Move):
         if len(dataArray) != cls.getSize():
             return None
 
-        data.roll, data.pitch, data.yaw, data.throttle = unpack('<bbbb', dataArray)
+        data._roll, data._pitch, data._yaw, data._throttle = unpack('<bbbb', dataArray)
         return data
 
 
@@ -1178,7 +1178,7 @@ class TrimFlight(ISerializable, Move):
         return 8
 
     def toArray(self):
-        return pack('<hhhh', self.roll, self.pitch, self.yaw, self.throttle)
+        return pack('<hhhh', self._roll, self._pitch, self._yaw, self._throttle)
 
     @classmethod
     def parse(cls, dataArray):
@@ -1187,7 +1187,7 @@ class TrimFlight(ISerializable, Move):
         if len(dataArray) != cls.getSize():
             return None
 
-        data.roll, data.pitch, data.yaw, data.throttle = unpack('<hhhh', dataArray)
+        data._roll, data._pitch, data._yaw, data._throttle = unpack('<hhhh', dataArray)
         return data
 
 

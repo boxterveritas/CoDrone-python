@@ -183,22 +183,31 @@ class FlightEvent(Enum):
 
 class DriveEvent(Enum):
     None_ = 0x00
+
     Stop = 0x01
     Shot = 0x02
     UnderAttack = 0x03
+
     EndOfType = 0x04
 
 
 class Direction(Enum):
     None_ = 0x00
+
     Left = 0x01
     Front = 0x02
     Right = 0x03
     Rear = 0x04
     Top = 0x05
     Bottom = 0x06
+
     EndOfType = 0x07
 
+    #just for user
+    Up = 0x08
+    Down = 0x09
+    Forward = 0x0A
+    Backward = 0x0B
 
 class SensorOrientation(Enum):
     None_ = 0x00

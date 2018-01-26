@@ -11,9 +11,7 @@ from system import *
 from protocol import *
 from crc import *
 from receiver import *
-
 from storage import *
-
 
 def convertByteArrayToString(dataArray):
     if dataArray == None:
@@ -26,6 +24,7 @@ def convertByteArrayToString(dataArray):
             string += "{0:02X} ".format(data)
 
     return string
+
 
 class Data:
     def __init__(self):
@@ -185,7 +184,6 @@ class CoDrone:
             return
 
         dataArray = self.makeTransferDataArray(header, data)
-
         self._serialport.write(dataArray)
 
         # print transfer data
@@ -557,7 +555,6 @@ class CoDrone:
 
         control = Control()
         control.setAll(roll,pitch,yaw,throttle)
-
         return self.transfer(header, control)
 
     def sendControlDuration(self, roll, pitch, yaw, throttle, duration):
@@ -645,26 +642,21 @@ class CoDrone:
 
         # move(duration, roll, pitch, yaw, throttle)
         else:
-            self._control.setAll(roll,pitch,yaw,throttle)
-            self.sendControlDuration(*self._control.getAll(), duration)
-
-        return self._control.roll
+            self.sendControlDuration(roll,pitch,yaw,throttle, duration)
 
     def go(self, direction, duration = 0.5, power = 50):
-        direction = direction[0].lower()
 
         # string matching : forward/backward , right/left, up/down
-        pitch = ((direction == "f") - (direction == "b")) * power
-        roll = ((direction == "r") - (direction == "l")) * power
+        pitch = ((direction == Direction.Forward) - (direction == Direction.Backward)) * power
+        roll = ((direction == Direction.Right) - (direction == Direction.Left)) * power
         yaw = 0
-        throttle = ((direction == "u") - (direction == "d")) * power
+        throttle = ((direction == Direction.Up) - (direction == Direction.Down)) * power
 
-        self.sendControlDuration(roll,pitch,yaw,throttle,duration)
+        self.sendControlDuration(roll, pitch, yaw, throttle, duration)
 
     def turn(self, direction, duration=None, power=50):
-        direction = direction[0].lower()
 
-        yaw = ((direction == "r") - (direction == "l")) * power
+        yaw = ((direction == Direction.Right) - (direction == Direction.Left)) * power
         if (duration is None):
             return self.sendControl(0, 0, yaw, 0)
         return self.sendControlDuration(0, 0, yaw, 0, duration)
