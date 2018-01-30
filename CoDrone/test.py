@@ -4,54 +4,87 @@ flag = 0
 battery = 0
 IR = 0
 
-def eventUpdataBattery(data):
-    global battery
-    global flag
-    battery = data.batteryPercent
-    flag = 1
-
-def eventUpdateIR(data):
-    global IR
-    global flag
-    IR = data.Range
-
 def dataTest(drone):
-    global flag
+    printData(drone.getHeight)
+    printData(drone.getBatteryPercentage)
+    printData(drone.getBatteryVoltage)
+    printData(drone.getAccelerometer)
+    printData(drone.getAngles)
+    printData(drone.getPressure)
+    printData(drone.getState)
+    printData(drone.getTrim)
+    printData(drone.getTemperature)
+def printData(func):
+    startTime = time.time()
+    h = func()
+    endTime = time.time() - startTime
+    print(func, ":", h, endTime)
 
-    print("request")
-    drone.setEventHandler(DataType.Battery, eventUpdataBattery)
-    drone.sendRequest(DataType.Battery)
-    print(battery)
-    while(1):
-        if(flag == 1):
-            flag = 0
-            print(battery)
-            drone.sendRequest(DataType.Battery)
+def moveTest(drone):
+    print("move 3")
+    drone.sendControl(0,0,0,-30)
+    sleep(2)
+    drone.sendControlDuration(0,30,0,0,2)
+    drone.sendControlDuration(0,-30,0,0,2)
+    drone.setThrottle(30)
+    drone.move()
+    sleep(3)
+    print("move 3")
+    drone.setThrottle(-30)
+    drone.move(3)
+    print("move 3")
+    drone.move(3,0,0,0,30)
+    print(drone.getThrottle())
 
 def goTest(drone):
-    drone.turn("right", 100, 2)
-    drone.turn("left", 100, 2)
-    drone.goDirection("right", 100, 2)
-    drone.goDirection("left", 100, 2)
+    print("go left for 2 sec")
+    drone.go(Direction.Left, 2, 50)
+    print("go right for 2 sec")
+    drone.go(Direction.Right, 2, 50)
+    print("go up for 2 sec")
+    drone.go(Direction.Up, 2, 50)
+    print("go down for 2 sec")
+    drone.go(Direction.Down, 2, 50)
     print(drone.getRoll(), drone.getPitch(), drone.getYaw(), drone.getThrottle())
 
-    """
-    drone.setThrottle(100)
-    print(drone.getThrottle())
+def combineTest(drone):
+    drone.takeoff()
+    height = drone.getHeight()
+    while(height < 1300):
+        print(height)
+        drone.go(Direction.Up)
+        height = drone.getHeight()
+    while(height > 500):
+        print(height)
+        drone.go(Direction.Down)
+        height = drone.getHeight()
+    drone.land()
 
-    drone.setThrottle(1000)
-    print(drone.getThrottle())
+def testDrone():
+    drone = CoDrone()
 
-    drone.go(3)
-    """
+    while(not drone.isConnected()):
+        print("printing")
+        drone.connect()
+        sleep(3)
 
-drone = CoDrone()
+    dataTest(drone)
+    drone.close()
 
-while(not drone.isConnected()):
-    print("printing")
-    drone.connect()
+def testCoDrone():
+    drone = CoDrone()
+
+
+    while(not drone.isConnected()):
+        print("printing")
+        drone.connect()
+        sleep(3)
+
+    drone.sendTakeOff()
     sleep(3)
+    drone.sendControl(0,0,0,-30)
+    sleep(2)
+    drone.sendControl(0,0,0,30)
+    sleep(2)
 
-#dataTest(drone)
-goTest(drone)
-drone.close()
+testDrone()

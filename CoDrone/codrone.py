@@ -30,9 +30,14 @@ class Data:
     def __init__(self):
         self.address = 0
         self.attitude = 0
-        self.battery = 0
+        self.accel = 0
+        self.angle = 0
+        self.batteryPercent = 0
+        self.batteryVoltage = 0
+        self.gyro = 0
         self.pressure = 0
         self.temperature = 0
+        self.trim = 0
         self.range = 0
         self.state = 0
 
@@ -41,7 +46,11 @@ class Data:
     def eventUpdateAttitude(self, data):
         self.attitude = data.roll, data.pitch, data.yaw
     def eventUpdateBattery(self, data):
-        self.battery = data.batteryPercent
+        self.batteryPercent = data.batteryPercent
+        self.batteryVoltage = data.voltage
+    def eventUpdateImu(self, data):
+        self.accel = data.accelX, data.accelY, data.accelZ
+        self.gyro = data.gyroRoll, data.gyroPitch, data.gyroYaw
     def eventUpdatePressure(self, data):
         self.pressure = data.pressure
         self.temperature = data.temperature
@@ -49,6 +58,8 @@ class Data:
         self.range = data.bottom
     def eventUpdateState(self, data):
         self.state = data.modeFlight
+    def eventUpdateTrim(self, data):
+        self.trim = data.roll, data.pitch, data.yaw, data.throttle
 
 class CoDrone:
     # BaseFunctions Start
@@ -240,7 +251,7 @@ class CoDrone:
         while len(self._bufferHandler) > 0:
             stateLoading = self._receiver.call(self._bufferHandler.pop(0))
 
-            # ptint error
+            # print error
             if stateLoading == StateLoading.Failure:
                 # print receive data
                 self._printReceiveDataEnd()
@@ -274,6 +285,9 @@ class CoDrone:
         # run callback event
         self._runEventHandler(header.dataType)
 
+        # count number of request
+        self._storageCount.d[header.dataType] += 1
+
         # process LinkEvent separately(event check like connect or disconnect)
         if (header.dataType == DataType.LinkEvent) and (self._storage.d[DataType.LinkEvent] != None):
             self._eventLinkEvent(self._storage.d[DataType.LinkEvent])
@@ -296,7 +310,6 @@ class CoDrone:
         if self._parser.d[header.dataType] != None:
             self._storageHeader.d[header.dataType] = header
             self._storage.d[header.dataType] = self._parser.d[header.dataType](dataArray)
-            self._storageCount.d[header.dataType] += 1
 
     def _runEventHandler(self, dataType):
         if (isinstance(dataType, DataType)) and (self._eventHandler.d[dataType] != None) and (
@@ -306,14 +319,14 @@ class CoDrone:
             return None
 
     def _setAllEventHandler(self):
-        self._eventHandler.d[Address] = self._data.eventUpdateAddress
-        self._eventHandler.d[Attitude] = self._data.eventUpdateAttitude
-        self._eventHandler.d[Battery] = self._data.eventUpdateBattery
-        self._eventHandler.d[Pressure] = self._data.eventUpdatePressure
-        self._eventHandler.d[Range] = self._data.eventUpdateRange
-        self._eventHandler.d[State] = self._data.eventUpdateState
-        #self._eventHandler.d[Temperature] = eventUpdateTemperature
-        #self._eventHandler.d[TrimAll] = eventUpdateTrimAll
+        self._eventHandler.d[DataType.Address] = self._data.eventUpdateAddress
+        self._eventHandler.d[DataType.Attitude] = self._data.eventUpdateAttitude
+        self._eventHandler.d[DataType.Battery] = self._data.eventUpdateBattery
+        self._eventHandler.d[DataType.Pressure] = self._data.eventUpdatePressure
+        self._eventHandler.d[DataType.Range] = self._data.eventUpdateRange
+        self._eventHandler.d[DataType.State] = self._data.eventUpdateState
+        self._eventHandler.d[DataType.Imu] = self._data.eventUpdateImu
+        self._eventHandler.d[DataType.TrimFlight] = self._data.eventUpdateTrim
 
     def setEventHandler(self, dataType, eventHandler):
         if (not isinstance(dataType, DataType)):
@@ -412,33 +425,32 @@ class CoDrone:
         length = len(self._devices)
 
         if eq(deviceName, "None"):
-            # 이름을 정하지 않은 경우 가장 가까운 장치에 연결
+            # If not specify a name, connect to the nearest device
             if length > 0:
                 closestDevice = self._devices[0]
 
-                # 장치가 2개 이상 검색된 경우 가장 가까운 장치를 선택
+                # If more than two device is found, select the closest device
                 if len(self._devices) > 1:
                     for i in range(len(self._devices)):
                         if closestDevice.rssi < self._devices[i].rssi:
                             closestDevice = self._devices[i]
 
-                # 장치 연결
+                # connect the device
                 self._flagConnected = False
                 self.sendLinkConnect(closestDevice.index)
 
-                # 5초간 장치 연결을 기다림
+                # wait for 5 seconds to connect the device
                 for i in range(50):
                     sleep(0.1)
                     if self._flagConnected:
                         break
-
                 sleep(1.2)
 
             else:
                 self._printError("Could not find PETRONE.")
 
         else:
-            # 연결된 장치들의 이름 확인
+            # check the name of connected device
             targetDevice = None
 
             if (len(self._devices) > 0):
@@ -450,17 +462,17 @@ class CoDrone:
                             break;
 
                     if targetDevice != None:
-                        # 장치를 찾은 경우 연결
+                        # if find the device, connect the device
                         self._flagConnected = False
                         self.sendLinkConnect(targetDevice.index)
 
-                        # 5초간 장치 연결을 기다림
+                        # wait for 5 seconds to connect the device
                         for i in range(50):
                             sleep(0.1)
                             if self._flagConnected:
                                 break
 
-                        # 연결된 후 1.2초를 추가로 기다림
+                        # connect and wait another 1.2 seconds.
                         sleep(1.2)
 
                     else:
@@ -476,38 +488,33 @@ class CoDrone:
 
     def _printLog(self, message):
 
-        # 로그 출력
         if self._flagShowLogMessage and message != None:
             print(Fore.GREEN + "[{0:10.03f}] {1}".format((time.time() - self.timeStartProgram),
                                                          message) + Style.RESET_ALL)
 
     def _printError(self, message):
 
-        # 오류 메세지 출력
         if self._flagShowErrorMessage and message != None:
             print(
                 Fore.RED + "[{0:10.03f}] {1}".format((time.time() - self.timeStartProgram), message) + Style.RESET_ALL)
 
     def _printTransferData(self, dataArray):
 
-        # 송신 데이터 출력
         if (self._flagShowTransferData) and (dataArray != None) and (len(dataArray) > 0):
             print(Back.YELLOW + Fore.BLACK + convertByteArrayToString(dataArray) + Style.RESET_ALL)
 
     def _printReceiveData(self, dataArray):
 
-        # 수신 데이터 출력
         if (self._flagShowReceiveData) and (dataArray != None) and (len(dataArray) > 0):
             print(Back.CYAN + Fore.BLACK + convertByteArrayToString(dataArray) + Style.RESET_ALL, end='')
 
     def _printReceiveDataEnd(self):
 
-        # 수신 데이터 출력(줄넘김)
         if self._flagShowReceiveData:
             print("")
 
 
-            # BaseFunctions End
+    # BaseFunctions End
 
 
 
@@ -735,37 +742,54 @@ class CoDrone:
 
 
     ### SENSORS & STATUS ---------------
+    def getDataWhile(self, dataType):
+        flag = self._storageCount.d[dataType]
+        self.sendRequest(dataType)
+        # wait data for 1 sec
+        timeStart = time.time()
+        while (self._storageCount.d[dataType] == flag) and ((time.time() - timeStart) < 2):
+            sleep(0.01)
+        return (self._storageCount.d[dataType] > flag)
+
     def getHeight(self):
-        ##TO DO##
-        pass
+        self.getDataWhile(DataType.Range)
+        return self._data.range
 
     def getPressure(self):
-        ##TO DO##
-        pass
+        self.getDataWhile(DataType.Pressure)
+        return self._data.pressure
 
     def getTemperature(self):
-        ##TO DO##
-        pass
+        self.getDataWhile(DataType.Pressure)
+        return self._data.temperature
 
     def getAngles(self):
-        ##TO DO##
-        pass
+        self.getDataWhile(DataType.Attitude)
+        return self._data.attitude
+
+    def getGyrometer(self):
+        self.getDataWhile(DataType.Imu)
+        return self._data.gyro
 
     def getAccelerometer(self):
-        ##TO DO##
-        pass
+        self.getDataWhile(DataType.Imu)
+        return self._data.accel
 
     def getState(self):
-        ##TO DO##
-        pass
+        self.getDataWhile(DataType.State)
+        return self._data.state
 
     def getBatteryPercentage(self):
-        ##TO DO##
-        pass
+        self.getDataWhile(DataType.Battery)
+        return self._data.batteryPercent
+
+    def getBatteryVoltage(self):
+        self.getDataWhile(DataType.Battery)
+        return self._data.batteryVoltage
 
     def getTrim(self):
-        ##TO DO##
-        pass
+        self.getDataWhile(DataType.TrimFlight)
+        return self._data.trim
 
     ### SENSORS & STATUS --------------- END
 
