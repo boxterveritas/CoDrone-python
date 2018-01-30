@@ -4,6 +4,13 @@ flag = 0
 battery = 0
 IR = 0
 
+
+def colorTest(drone):
+    drone.setEyeRGB(0,255,0)
+    sleep(2)
+    drone.setArmRGB(0,0,255)
+    sleep(3)
+
 def dataTest(drone):
     printData(drone.getHeight)
     printData(drone.getBatteryPercentage)
@@ -14,11 +21,17 @@ def dataTest(drone):
     printData(drone.getState)
     printData(drone.getTrim)
     printData(drone.getTemperature)
+    for i in range(100):
+        printData(drone.getAngles)
+        sleep(1)
 def printData(func):
     startTime = time.time()
     h = func()
     endTime = time.time() - startTime
     print(func, ":", h, endTime)
+
+def func(fuck):
+    return (1,2,3,4)
 
 def moveTest(drone):
     print("move 3")
@@ -68,12 +81,11 @@ def testDrone():
         drone.connect()
         sleep(3)
 
-    dataTest(drone)
+    colorTest(drone)
     drone.close()
 
 def testCoDrone():
     drone = CoDrone()
-
 
     while(not drone.isConnected()):
         print("printing")

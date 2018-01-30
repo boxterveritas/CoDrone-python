@@ -788,6 +788,7 @@ class LightModeCommandIr(ISerializable):
         return data
 
 
+
 class LightModeColor(ISerializable):
     def __init__(self):
         self.mode = LightModeDrone.None_
@@ -801,7 +802,7 @@ class LightModeColor(ISerializable):
     def toArray(self):
         dataArray = bytearray()
         dataArray.extend(pack('<B', self.mode.value))
-        dataArray.extend(self.mode.toArray())
+        dataArray.extend(self.color.toArray())
         dataArray.extend(pack('<B', self.interval))
         return dataArray
 

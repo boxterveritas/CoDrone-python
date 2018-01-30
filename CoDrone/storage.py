@@ -1,4 +1,4 @@
-from CoDrone.system import *
+from system import *
 
 from protocol import *
 

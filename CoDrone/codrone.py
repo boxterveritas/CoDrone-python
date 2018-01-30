@@ -796,29 +796,55 @@ class CoDrone:
 
     ### LEDS -----------
 
-    def setArmColor(self):
-        ##TO DO##
-        pass
+    def setArmRGB(self, red, green, blue):
+        if ((not isinstance(red, int)) or
+                (not isinstance(green, int)) or
+                (not isinstance(blue, int))):
+            return None
 
-    def setArmRGB(self):
-        ##TO DO##
-        pass
+        header = Header()
 
-    def setEyeColor(self):
-        ##TO DO##
-        pass
+        header.dataType = DataType.LightModeColor
+        header.length = LightModeColor.getSize()
 
-    def setEyeRGB(self):
-        ##TO DO##
-        pass
+        data = LightModeColor()
+
+        data.mode = LightModeDrone.ArmHold
+        data.color.r = red
+        data.color.g = green
+        data.color.b = blue
+        data.interval = 255
+
+        return self.transfer(header, data)
+
+    def setEyeRGB(self, red, green, blue):
+        if ((not isinstance(red, int)) or
+                (not isinstance(green, int)) or
+                (not isinstance(blue, int))):
+            return None
+
+        header = Header()
+
+        header.dataType = DataType.LightModeColor
+        header.length = LightModeColor.getSize()
+
+        data = LightModeColor()
+
+        data.mode = LightModeDrone.EyeHold
+        data.color.r = red
+        data.color.g = green
+        data.color.b = blue
+        data.interval = 255
+
+        return self.transfer(header, data)
 
     def setLEDMode(self):
         ##TO DO##
         pass
 
     def resetLED(self):
-        ##TO DO##
-        pass
+        self.sendLightModeDefaultColor(LightModeDrone.EyeNone, 255,0,0,255)
+        self.sendLightModeDefaultColor(LightModeDrone.ArmNone, 255,0,0,255)
 
     def flash(self):
         ##TO DO##
@@ -1090,7 +1116,7 @@ class CoDrone:
 
     def sendLightMode(self, lightMode, colors, interval):
 
-        if (((not isinstance(lightMode, LightMode))) or
+        if (((not isinstance(lightMode, LightModeDrone))) or
                 (not isinstance(interval, int)) or
                 (not isinstance(colors, Colors))):
             return None
@@ -1110,7 +1136,7 @@ class CoDrone:
 
     def sendLightModeCommand(self, lightMode, colors, interval, commandType, option):
 
-        if (((not isinstance(lightMode, LightMode))) or
+        if (((not isinstance(lightMode, LightModeDrone))) or
                 (not isinstance(interval, int)) or
                 (not isinstance(colors, Colors)) or
                 (not isinstance(commandType, CommandType)) or
@@ -1135,7 +1161,7 @@ class CoDrone:
 
     def sendLightModeCommandIr(self, lightMode, interval, colors, commandType, option, irData):
 
-        if (((not isinstance(lightMode, LightMode))) or
+        if (((not isinstance(lightMode, LightModeDrone))) or
                 (not isinstance(interval, int)) or
                 (not isinstance(colors, Colors)) or
                 (not isinstance(commandType, CommandType)) or
@@ -1163,7 +1189,7 @@ class CoDrone:
 
     def sendLightModeColor(self, lightMode, r, g, b, interval):
 
-        if ((not isinstance(lightMode, LightMode)) or
+        if ((not isinstance(lightMode, LightModeDrone)) or
                 (not isinstance(r, int)) or
                 (not isinstance(g, int)) or
                 (not isinstance(b, int)) or
@@ -1187,7 +1213,7 @@ class CoDrone:
 
     def sendLightEvent(self, lightEvent, colors, interval, repeat):
 
-        if (((not isinstance(lightEvent, LightMode))) or
+        if (((not isinstance(lightEvent, LightModeDrone))) or
                 (not isinstance(colors, Colors)) or
                 (not isinstance(interval, int)) or
                 (not isinstance(repeat, int))):
@@ -1209,7 +1235,7 @@ class CoDrone:
 
     def sendLightEventCommand(self, lightEvent, colors, interval, repeat, commandType, option):
 
-        if (((not isinstance(lightEvent, LightMode))) or
+        if (((not isinstance(lightEvent, LightModeDrone))) or
                 (not isinstance(colors, Colors)) or
                 (not isinstance(interval, int)) or
                 (not isinstance(repeat, int)) or
@@ -1236,7 +1262,7 @@ class CoDrone:
 
     def sendLightEventCommandIr(self, lightEvent, colors, interval, repeat, commandType, option, irData):
 
-        if (((not isinstance(lightEvent, LightMode))) or
+        if (((not isinstance(lightEvent, LightModeDrone))) or
                 (not isinstance(colors, Colors)) or
                 (not isinstance(interval, int)) or
                 (not isinstance(repeat, int)) or
@@ -1266,7 +1292,7 @@ class CoDrone:
 
     def sendLightEventColor(self, lightEvent, r, g, b, interval, repeat):
 
-        if (((not isinstance(lightEvent, LightMode))) or
+        if (((not isinstance(lightEvent, LightModeDrone))) or
                 (not isinstance(r, int)) or
                 (not isinstance(g, int)) or
                 (not isinstance(b, int)) or
@@ -1292,7 +1318,7 @@ class CoDrone:
 
     def sendLightModeDefaultColor(self, lightMode, r, g, b, interval):
 
-        if ((not isinstance(lightMode, LightMode)) or
+        if ((not isinstance(lightMode, LightModeDrone)) or
                 (not isinstance(r, int)) or
                 (not isinstance(g, int)) or
                 (not isinstance(b, int)) or
