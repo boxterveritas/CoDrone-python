@@ -30,7 +30,7 @@ def printData(func):
     endTime = time.time() - startTime
     print(func, ":", h, endTime)
 
-def func(fuck):
+def func(f):
     return (1,2,3,4)
 
 def moveTest(drone):
