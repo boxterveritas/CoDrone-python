@@ -562,7 +562,7 @@ class CoDrone:
 
         control = Control()
         control.setAll(roll,pitch,yaw,throttle)
-        return self.transfer(header, control)
+        self.transfer(header, control)
 
     def sendControlDuration(self, roll, pitch, yaw, throttle, duration):
         if(duration == 0):
@@ -577,11 +577,11 @@ class CoDrone:
         control = Control()
         control.setAll(roll, pitch, yaw, throttle)
 
+    	self.transfer(header, control)
         while (time.time() - timeStart) < duration:
-            self.transfer(header, control)
             sleep(0.02)
         control.setAll(0,0,0,0)
-        return self.transfer(header, control)
+        self.transfer(header, control)
     ### Control End ---------
 
 
@@ -620,7 +620,7 @@ class CoDrone:
         data = TrimFlight()
         data.setAll(roll, pitch, yaw, throttle)
 
-        return self.transfer(header, data)
+        self.transfer(header, data)
 
     def resetTrim(self, power):
         header = Header()
@@ -631,7 +631,7 @@ class CoDrone:
         data = TrimFlight()
         data.setAll(0, 0, 0, power)
 
-        return self.transfer(header, data)
+        self.transfer(header, data)
 
     ### FLIGHT VARIABLES ------------- END
 
@@ -662,11 +662,11 @@ class CoDrone:
         self.sendControlDuration(roll, pitch, yaw, throttle, duration)
 
     def turn(self, direction, duration=None, power=50):
-
         yaw = ((direction == Direction.Right) - (direction == Direction.Left)) * power
         if (duration is None):
-            return self.sendControl(0, 0, yaw, 0)
-        return self.sendControlDuration(0, 0, yaw, 0, duration)
+            self.sendControl(0, 0, yaw, 0)
+        else:
+        	self.sendControlDuration(0, 0, yaw, 0, duration)
 
     def turnDegree(self):
         ### TO DO ###
@@ -723,6 +723,20 @@ class CoDrone:
 
         self.transfer(header, data)
 
+    def hover(self, duration):
+    	timeStart = time.time()
+        header = Header()
+
+        header.dataType = DataType.Control
+        header.length = Control.getSize()
+
+        control = Control()
+        control.setAll(0, 0, 0, 0)
+
+        self.transfer(header, control)
+        while (time.time() - timeStart) < duration:
+            sleep(0.02)
+
     def emergencyStop(self):
         self._control.setAll(0, 0, 0, 0)
 
@@ -740,7 +754,7 @@ class CoDrone:
 
     ### FLIGHT EVENTS ------------------ END
 
-
+    
     ### SENSORS & STATUS ---------------
     def getDataWhile(self, dataType):
         flag = self._storageCount.d[dataType]
@@ -759,21 +773,21 @@ class CoDrone:
         self.getDataWhile(DataType.Pressure)
         return self._data.pressure
 
-    def getTemperature(self):
+    def getDroneTemp(self):
         self.getDataWhile(DataType.Pressure)
         return self._data.temperature
 
     def getAngles(self):
         self.getDataWhile(DataType.Attitude)
-        return self._data.attitude
+        return angle(self._data.attitude)
 
     def getGyrometer(self):
         self.getDataWhile(DataType.Imu)
-        return self._data.gyro
+        return angle(self._data.gyro)
 
     def getAccelerometer(self):
         self.getDataWhile(DataType.Imu)
-        return self._data.accel
+        return axis(self._data.accel)
 
     def getState(self):
         self.getDataWhile(DataType.State)
@@ -789,7 +803,7 @@ class CoDrone:
 
     def getTrim(self):
         self.getDataWhile(DataType.TrimFlight)
-        return self._data.trim
+        return flight(self._data.trim)
 
     ### SENSORS & STATUS --------------- END
 
