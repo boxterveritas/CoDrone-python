@@ -20,29 +20,29 @@ class ISerializable:
 
 # ISerializable End
 
-class flight:
-    def __init__(self, _roll, _pitch, _yaw, _throttle):
-        self.roll = _roll
-        self.pitch = _pitch
-        self.yaw = _yaw
-        self.throttle = _throttle
+class Flight:
+    def __init__(self, roll, pitch, yaw, throttle):
+        self.Roll = roll
+        self.Pitch = pitch
+        self.Yaw = yaw
+        self.Throttle = throttle
 
-class position:
-    def __init__(self, _x, _y):
-        self.x = _x
-        self.y = _y
+class Position:
+    def __init__(self, x, y):
+        self.X = x
+        self.Y = y
 
-class angle:
-    def __init__(self, _roll, _pitch, _yaw):
-        self.roll = _roll
-        self.pitch = _pitch
-        self.yaw = _yaw
+class Angle:
+    def __init__(self, roll, pitch, yaw):
+        self.Roll = roll
+        self.Pitch = pitch
+        self.Yaw = yaw
 
-class axis:
-    def __init__(self, _x, _y, _z):
-        self.x = _x
-        self.y = _y
-        self.z = _z
+class Axis:
+    def __init__(self, x, y, z):
+        self.X = x
+        self.Y = y
+        self.Z = z
 
 
 

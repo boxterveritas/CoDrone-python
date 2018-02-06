@@ -1,5 +1,14 @@
 from enum import Enum
 
+class Mode(Enum):
+    Hold = 0
+    Off = 1
+    Blinking = 2
+    DoubleBlink = 3
+    Pulsing = 4
+    Flow = 5
+    ReverseFlow = 6
+    Mix = 7
 
 class DeviceType(Enum):
     None_ = 0x00
