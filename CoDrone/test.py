@@ -5,43 +5,47 @@ IR = 0
 
 
 def colorTest(drone):
-    """
-    print("eye : Green, arm : Blue")
-    # set the eye color to Green
-    drone.setEyeRGB(0,255,0)
-    sleep(0.03)
-    # set the arm color to Blue
-    drone.setArmRGB(0,0,255)
-    sleep(0.03)
-
-    print("eye : Blinking Blue, arm : DoubleBlinking Blue")
-    #drone.setLEDMode(Mode.Blinking)
-    #drone.setEyeRGB(0,0,255)
-    drone.setLEDMode(Mode.DoubleBlink)
-    drone.setArmRGB(0,0,255)
+    print("START Color Test ----")
+    drone.resetLED()
+    print("set")
+    drone.setArmLEDMode(Mode.Pulsing)
     sleep(3)
-
-    print("eye : Mix red, arm : Flow red")
-    drone.setLEDMode(Mode.Mix)
-    drone.setEyeRGB(255,0,0)
-    sleep(3)
-    drone.setLEDMode(Mode.Flow)
-    drone.setArmRGB(255,0,0)
-    sleep(3)
-
-    print("eye : Reverse Flow Green, arm : Pulsing Green")
-    drone.setLEDMode(Mode.ReverseFlow)
-    drone.setEyeRGB(0,255,0)
-    sleep(3)
-    drone.setLEDMode(Mode.Pulsing)
     drone.setArmRGB(0,255,0)
     sleep(3)
 
-    print("eye : Off , arm : Blue")
-    drone.setLEDMode(Mode.Off)
+    print("eye : Blinking Blue, arm : DoubleBlinking Blue")
+    drone.setLEDMode(Mode.Blinking)
+    drone.setEyeRGB(0,0,255)
+    drone.setLEDMode(Mode.DoubleBlink)
     drone.setArmRGB(0,0,255)
-    sleep(5)
-    """
+
+    # for seeing color
+    sleep(3)
+
+    print("eye : Mix, arm : Flow red")
+    drone.setLEDMode(Mode.Mix)
+    drone.setEyeRGB(255,0,0)
+
+    drone.setLEDMode(Mode.Flow)
+    drone.setArmRGB(255,0,0)
+
+    # for seeing color
+    sleep(3)
+
+    print("eye : Reverse Flow Green, arm : Pulsing Green")
+    drone.setLEDMode(Mode.Pulsing)
+    drone.setEyeRGB(0,255,0)
+
+    drone.setLEDMode(Mode.ReverseFlow)
+    drone.setArmRGB(0,255,0)
+
+    # for seeing color
+    sleep(3)
+
+    print("eye : Off , arm : Blue")
+    drone.setLEDMode(Mode.Hold)
+    drone.setArmRGB(0,0,255)
+
 
     #drone.resetLED()
     #sleep(5)
@@ -61,22 +65,22 @@ def colorTest(drone):
 def dataTest(drone):
     print("---- START Data Test")
     for i in range(2):
-        print(drone.getHeight())
-        print(drone.getBatteryPercentage())
-        print(drone.getBatteryVoltage())
+        print("Height :" , drone.getHeight())
+        print("battery percentage :" ,drone.getBatteryPercentage())
+        print("battery voltage :" ,drone.getBatteryVoltage())
         temp = drone.getAccelerometer()
-        print(temp.X, temp.Y, temp.Z)
+        print("accel :" ,temp.X, temp.Y, temp.Z)
         temp = drone.getAngularSpeed()
-        print(temp.Roll, temp.Pitch, temp.Yaw)
-        print(drone.getPressure())
-        print(drone.getState())
+        print("angular speed :" ,temp.Roll, temp.Pitch, temp.Yaw)
+        print("pressure :" ,drone.getPressure())
+        print("state :" ,drone.getState())
         temp = drone.getTrim()
-        print(temp.Roll, temp.Pitch, temp.Yaw, temp.Throttle)
-        print(drone.getDroneTemp())
+        print("trim :" ,temp.Roll, temp.Pitch, temp.Yaw, temp.Throttle)
+        print("temperature :" ,drone.getDroneTemp())
         temp = drone.getGyroAngles()
-        print(temp.Roll, temp.Pitch, temp.Yaw)
+        print("gyro :" ,temp.Roll, temp.Pitch, temp.Yaw)
         temp = drone.getOptFlowPosition()
-        print(temp.X, temp.Y)
+        print("image flow :" ,temp.X, temp.Y)
         sleep(2)
     print("---- DONE Data Test")
 
@@ -111,7 +115,7 @@ def flightTest(drone):
 
 def moveTest(drone):
     print("---- START Move Test")
-
+    """
     print("down for 2sec")
     drone.sendControl(0, 0, 0, -30)
     sleep(2)
@@ -127,27 +131,27 @@ def moveTest(drone):
 
     print("hovering for 2sec")
     sleep(2)
-
+    """
     print("up for 2sec")
-    drone.setThrottle(30)
+    drone.setThrottle(50)
     drone.move()
     sleep(2)
 
     print("down for 2sec")
-    drone.setThrottle(-30)
+    drone.setThrottle(-50)
     drone.move(2)
 
     print("hovering for 2sec")
     sleep(2)
 
     print("right for 2sec")
-    drone.move(2, 30, 0, 0, 0)
+    drone.move(1, 30, 0, 0, 0)
 
     print("hovering for 2sec")
     sleep(2)
 
     print("left for 2sec")
-    drone.move(2, -30, 0, 0, 0)
+    drone.move(1, -30, 0, 0, 0)
 
     print("hovering for 2sec")
     sleep(2)
@@ -159,10 +163,10 @@ def goTest(drone):
     print("---- START Go Test")
 
     print("go left for 2 sec")
-    drone.go(Direction.Left, 2, 50)
+    drone.go(Direction.Left, 2, 20)
 
     print("go right for 2 sec")
-    drone.go(Direction.Right, 2, 50)
+    drone.go(Direction.Right, 2, 20)
 
     print("go up for 2 sec")
     drone.go(Direction.Up, 2, 50)
@@ -198,6 +202,8 @@ def testDrone():
         drone.connect()
         sleep(3)
 
+    drone.sendRequest(DataType.LightModeColor)
+    sleep(3)
     #flightTest(drone)
     #drone.takeoff()
     #drone.hover(0)

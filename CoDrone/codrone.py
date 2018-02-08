@@ -117,6 +117,7 @@ class CoDrone:
         self._flagConnected = False  # when using auto connect, notice connection with device
         self.timeStartProgram = time.time()  # record program starting time
 
+        self.LEDColor = [255,0,0]
         self.LEDArmMode = LightModeDrone.ArmHold
         self.LEDEyeMode = LightModeDrone.EyeHold
         colorama.init()
@@ -813,7 +814,7 @@ class CoDrone:
 
     def getOptFlowPosition(self):
         self.getDataWhile(DataType.ImageFlow)
-        return self._data.imageflow
+        return self._data.imageFlow
 
     def getState(self):
         self.getDataWhile(DataType.State)
@@ -859,9 +860,11 @@ class CoDrone:
         data.color.r = red
         data.color.g = green
         data.color.b = blue
-        data.interval = 255
+        data.interval = 100
+        self.LEDColor = [red, green, blue]
 
-        return self.transfer(header, data)
+        self.transfer(header, data)
+        sleep(0.25)
 
     def setEyeRGB(self, red, green, blue):
         if ((not isinstance(red, int)) or
@@ -880,58 +883,122 @@ class CoDrone:
         data.color.r = red
         data.color.g = green
         data.color.b = blue
-        data.interval = 255
+        data.interval = 100
+        self.LEDColor = [red, green, blue]
 
-        return self.transfer(header, data)
+        self.transfer(header, data)
+        sleep(0.25)
 
-    def setLEDMode(self, mode):
+    def setArmLEDMode(self, mode):
         if mode == Mode.Pulsing:
             self.LEDArmMode = LightModeDrone.ArmDimming
-            self.LEDEyeMode = LightModeDrone.EyeDimming
         elif mode == Mode.Blinking:
             self.LEDArmMode = LightModeDrone.ArmFlicker
-            self.LEDEyeMode = LightModeDrone.EyeFlicker
         elif mode == Mode.DoubleBlink:
             self.LEDArmMode = LightModeDrone.ArmFlickerDouble
-            self.LEDEyeMode = LightModeDrone.EyeFlickerDouble
         elif mode == Mode.Flow:
             self.LEDArmMode = LightModeDrone.ArmFlow
         elif mode == Mode.ReverseFlow:
             self.LEDArmMode = LightModeDrone.ArmFlowReverse
         elif mode == Mode.Hold:
             self.LEDArmMode = LightModeDrone.ArmHold
-            self.LEDEyeMode = LightModeDrone.EyeHold
         elif mode == Mode.Mix:
             self.LEDArmMode = LightModeDrone.ArmMix
-            self.LEDEyeMode = LightModeDrone.EyeMix
         elif mode == Mode.Off:
             self.LEDArmMode = LightModeDrone.ArmNone
-            self.LEDEyeMode = LightModeDrone.EyeNone
+        else:
+            return None
 
-    def resetLED(self):
         header = Header()
 
-        header.dataType = DataType.LightModeDefaultColor2
-        header.length = LightModeDefaultColor2.getSize()
+        header.dataType = DataType.LightModeColor
+        header.length = LightModeColor.getSize()
 
-        data = LightModeDefaultColor2()
-        data.lightModeColor1.mode = LightModeDrone.EyeHold
-        data.lightModeColor1.color.r = 255
-        data.lightModeColor1.color.g = 0
-        data.lightModeColor1.color.b = 0
-        data.lightModeColor1.interval = 255
+        data = LightModeColor()
 
-        data.lightModeColor2.mode = LightModeDrone.ArmHold
-        data.lightModeColor2.color.r = 255
-        data.lightModeColor2.color.g = 0
-        data.lightModeColor2.color.b = 0
-        data.lightModeColor2.interval = 255
+        data.mode = self.LEDArmMode
+        data.color.r, data.color.g, data.color.b = self.LEDColor
+        data.interval = 100
 
         self.transfer(header, data)
+        sleep(0.25)
 
-    def flash(self):
-        ##TO DO##
-        pass
+
+    def setEyeLEDMode(self, mode):
+        if mode == Mode.Pulsing:
+            self.LEDEyeMode = LightModeDrone.EyeDimming
+        elif mode == Mode.Blinking:
+            self.LEDEyeMode = LightModeDrone.EyeFlicker
+        elif mode == Mode.DoubleBlink:
+            self.LEDEyeMode = LightModeDrone.EyeFlickerDouble
+        elif mode == Mode.Hold:
+            self.LEDEyeMode = LightModeDrone.EyeHold
+        elif mode == Mode.Mix:
+            self.LEDEyeMode = LightModeDrone.EyeMix
+        elif mode == Mode.Off:
+            self.LEDEyeMode = LightModeDrone.EyeNone
+        else:
+            return None
+
+        header = Header()
+
+        header.dataType = DataType.LightModeColor
+        header.length = LightModeColor.getSize()
+
+        data = LightModeColor()
+
+        data.mode = self.LEDEyeMode
+        data.color.r, data.color.g, data.color.b = self.LEDColor
+        data.interval = 100
+
+        self.transfer(header, data)
+        sleep(0.25)
+
+    def setArmDefaultLED(self, red, green, blue):
+        if ((not isinstance(red, int)) or
+                (not isinstance(green, int)) or
+                (not isinstance(blue, int))):
+            return None
+
+        header = Header()
+
+        header.dataType = DataType.LightModeDefaultColor
+        header.length = LightModeDefaultColor.getSize()
+
+        data = LightModeDefaultColor()
+        data.mode = LightModeDrone.ArmHold
+        data.color.r = red
+        data.color.g = green
+        data.color.b = blue
+        data.interval = 100
+
+        self.transfer(header, data)
+        sleep(0.25)
+
+    def setEyeDefaultLED(self, red, green, blue):
+        if ((not isinstance(red, int)) or
+                (not isinstance(green, int)) or
+                (not isinstance(blue, int))):
+            return None
+
+        header = Header()
+
+        header.dataType = DataType.LightModeDefaultColor
+        header.length = LightModeDefaultColor.getSize()
+
+        data = LightModeDefaultColor()
+        data.mode = LightModeDrone.EyeHold
+        data.color.r = red
+        data.color.g = green
+        data.color.b = blue
+        data.interval = 100
+
+        self.transfer(header, data)
+        sleep(0.25)
+
+    def resetLED(self):
+        self.setEyeDefaultLED(255,0,0)
+        self.setArmDefaultLED(255,0,0)
 
     def setAllRGB(self, red, green, blue):
 
@@ -940,29 +1007,8 @@ class CoDrone:
                 (not isinstance(blue, int))):
             return None
 
-        """
-        header = Header()
-
-        header.dataType = DataType.LightModeColor2
-        header.length = LightModeColor2.getSize()
-
-        data = LightModeColor2()
-        data.lightModeColor1.mode = self.LEDEyeMode
-        data.lightModeColor1.color.r = red
-        data.lightModeColor1.color.g = green
-        data.lightModeColor1.color.b = blue
-        data.lightModeColor1.interval = 255
-
-        data.lightModeColor2.mode = self.LEDArmMode
-        data.lightModeColor2.color.r = red
-        data.lightModeColor2.color.g = green
-        data.lightModeColor2.color.b = blue
-        data.lightModeColor2.interval = 255
-
-        self.transfer(header, data)
-        print("well", red,green,blue)
-        """
-
+        self.setArmRGB(red, green, blue)
+        self.setEyeRGB(red, green, blue)
 
     ### LEDS ----------- END
 
