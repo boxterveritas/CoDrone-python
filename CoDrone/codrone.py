@@ -889,7 +889,163 @@ class CoDrone:
         self.transfer(header, data)
         sleep(0.25)
 
-    def setArmLEDMode(self, mode):
+    def setAllRGB(self, red, green, blue):
+
+        if ((not isinstance(red, int)) or
+                (not isinstance(green, int)) or
+                (not isinstance(blue, int))):
+            return None
+
+        self.setArmRGB(red, green, blue)
+        self.setEyeRGB(red, green, blue)
+
+    def setArmDefaultRGB(self, red, green, blue):
+        if ((not isinstance(red, int)) or
+                (not isinstance(green, int)) or
+                (not isinstance(blue, int))):
+            return None
+
+        header = Header()
+
+        header.dataType = DataType.LightModeDefaultColor
+        header.length = LightModeDefaultColor.getSize()
+
+        data = LightModeDefaultColor()
+        data.mode = self.LEDArmMode
+        self.LEDColor = [red, green, blue]
+        data.color.r = red
+        data.color.g = green
+        data.color.b = blue
+        data.interval = 100
+
+        self.transfer(header, data)
+        sleep(0.25)
+
+    def setEyeDefaultRGB(self, red, green, blue):
+        if ((not isinstance(red, int)) or
+                (not isinstance(green, int)) or
+                (not isinstance(blue, int))):
+            return None
+
+        header = Header()
+
+        header.dataType = DataType.LightModeDefaultColor
+        header.length = LightModeDefaultColor.getSize()
+
+        data = LightModeDefaultColor()
+        data.mode = self.LEDEyeMode
+        self.LEDColor = [red, green, blue]
+        data.color.r = red
+        data.color.g = green
+        data.color.b = blue
+        data.interval = 100
+
+        self.transfer(header, data)
+        sleep(0.25)
+
+    def resetDefaultLED(self):
+        header = Header()
+
+        header.dataType = DataType.LightModeDefaultColor
+        header.length = LightModeDefaultColor.getSize()
+
+        data = LightModeDefaultColor()
+        data.mode = LightModeDrone.EyeHold
+        data.color.r = 255
+        data.color.g = 0
+        data.color.b = 0
+        data.interval = 100
+
+        self.transfer(header, data)
+        sleep(0.3)
+
+        data.mode = LightModeDrone.ArmHold
+        self.transfer(header, data)
+        sleep(0.25)
+
+    def setEyeMode(self, mode):
+        self._changeEyeMode(mode)
+
+        header = Header()
+
+        header.dataType = DataType.LightModeColor
+        header.length = LightModeColor.getSize()
+
+        data = LightModeColor()
+
+        data.mode = self.LEDEyeMode
+        data.color.r, data.color.g, data.color.b = self.LEDColor
+        data.interval = 100
+
+        self.transfer(header, data)
+        sleep(0.25)
+
+    def setArmMode(self, mode):
+        self._changeArmMode(mode)
+
+        header = Header()
+
+        header.dataType = DataType.LightModeColor
+        header.length = LightModeColor.getSize()
+
+        data = LightModeColor()
+
+        data.mode = self.LEDArmMode
+        data.color.r, data.color.g, data.color.b = self.LEDColor
+        data.interval = 100
+
+        self.transfer(header, data)
+        sleep(0.25)
+
+    def setArmDefaultMode(self, mode):
+        self._changeArmMode(mode)
+
+        header = Header()
+
+        header.dataType = DataType.LightModeDefaultColor
+        header.length = LightModeDefaultColor.getSize()
+
+        data = LightModeDefaultColor()
+        data.mode = self.LEDArmMode
+        data.color.r, data.color.g, data.color.b = self.LEDColor
+        data.interval = 100
+
+        self.transfer(header, data)
+        sleep(0.25)
+
+    def setEyeDefaultMode(self, mode):
+        self._changeEyeMode(mode)
+
+        header = Header()
+
+        header.dataType = DataType.LightModeDefaultColor
+        header.length = LightModeDefaultColor.getSize()
+
+        data = LightModeDefaultColor()
+        data.mode = self.LEDEyeMode
+        data.color.r, data.color.g, data.color.b = self.LEDColor
+        data.interval = 100
+
+        self.transfer(header, data)
+        sleep(0.25)
+
+    def _changeEyeMode(self, mode):
+        if mode == Mode.Pulsing:
+            self.LEDEyeMode = LightModeDrone.EyeDimming
+        elif mode == Mode.Blinking:
+            self.LEDEyeMode = LightModeDrone.EyeFlicker
+        elif mode == Mode.DoubleBlink:
+            self.LEDEyeMode = LightModeDrone.EyeFlickerDouble
+        elif mode == Mode.Hold:
+            self.LEDEyeMode = LightModeDrone.EyeHold
+        elif mode == Mode.Mix:
+            self.LEDEyeMode = LightModeDrone.EyeMix
+        elif mode == Mode.Off:
+            self.LEDEyeMode = LightModeDrone.EyeNone
+        else:
+            return None
+
+    def _changeArmMode(self, mode):
         if mode == Mode.Pulsing:
             self.LEDArmMode = LightModeDrone.ArmDimming
         elif mode == Mode.Blinking:
@@ -909,114 +1065,10 @@ class CoDrone:
         else:
             return None
 
-        header = Header()
-
-        header.dataType = DataType.LightModeColor
-        header.length = LightModeColor.getSize()
-
-        data = LightModeColor()
-
-        data.mode = self.LEDArmMode
-        data.color.r, data.color.g, data.color.b = self.LEDColor
-        data.interval = 100
-
-        self.transfer(header, data)
-        sleep(0.25)
-
-
-    def setEyeLEDMode(self, mode):
-        if mode == Mode.Pulsing:
-            self.LEDEyeMode = LightModeDrone.EyeDimming
-        elif mode == Mode.Blinking:
-            self.LEDEyeMode = LightModeDrone.EyeFlicker
-        elif mode == Mode.DoubleBlink:
-            self.LEDEyeMode = LightModeDrone.EyeFlickerDouble
-        elif mode == Mode.Hold:
-            self.LEDEyeMode = LightModeDrone.EyeHold
-        elif mode == Mode.Mix:
-            self.LEDEyeMode = LightModeDrone.EyeMix
-        elif mode == Mode.Off:
-            self.LEDEyeMode = LightModeDrone.EyeNone
-        else:
-            return None
-
-        header = Header()
-
-        header.dataType = DataType.LightModeColor
-        header.length = LightModeColor.getSize()
-
-        data = LightModeColor()
-
-        data.mode = self.LEDEyeMode
-        data.color.r, data.color.g, data.color.b = self.LEDColor
-        data.interval = 100
-
-        self.transfer(header, data)
-        sleep(0.25)
-
-    def setArmDefaultLED(self, red, green, blue):
-        if ((not isinstance(red, int)) or
-                (not isinstance(green, int)) or
-                (not isinstance(blue, int))):
-            return None
-
-        header = Header()
-
-        header.dataType = DataType.LightModeDefaultColor
-        header.length = LightModeDefaultColor.getSize()
-
-        data = LightModeDefaultColor()
-        data.mode = LightModeDrone.ArmHold
-        data.color.r = red
-        data.color.g = green
-        data.color.b = blue
-        data.interval = 100
-
-        self.transfer(header, data)
-        sleep(0.25)
-
-    def setEyeDefaultLED(self, red, green, blue):
-        if ((not isinstance(red, int)) or
-                (not isinstance(green, int)) or
-                (not isinstance(blue, int))):
-            return None
-
-        header = Header()
-
-        header.dataType = DataType.LightModeDefaultColor
-        header.length = LightModeDefaultColor.getSize()
-
-        data = LightModeDefaultColor()
-        data.mode = LightModeDrone.EyeHold
-        data.color.r = red
-        data.color.g = green
-        data.color.b = blue
-        data.interval = 100
-
-        self.transfer(header, data)
-        sleep(0.25)
-
-    def resetLED(self):
-        self.setEyeDefaultLED(255,0,0)
-        self.setArmDefaultLED(255,0,0)
-
-    def setAllRGB(self, red, green, blue):
-
-        if ((not isinstance(red, int)) or
-                (not isinstance(green, int)) or
-                (not isinstance(blue, int))):
-            return None
-
-        self.setArmRGB(red, green, blue)
-        self.setEyeRGB(red, green, blue)
-
     ### LEDS ----------- END
-
-
 
     # Setup Start
     def sendCommand(self, commandType, option=0):
-
         if ((not isinstance(commandType, CommandType)) or (not isinstance(option, int))):
             return None
 
@@ -1029,11 +1081,9 @@ class CoDrone:
 
         data.commandType = commandType
         data.option = option
-
         return self.transfer(header, data)
 
     def sendModeVehicle(self, modeVehicle):
-
         if (not isinstance(modeVehicle, ModeVehicle)):
             return None
 

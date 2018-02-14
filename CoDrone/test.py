@@ -6,61 +6,57 @@ IR = 0
 
 def colorTest(drone):
     print("START Color Test ----")
-    drone.resetLED()
-    print("set")
-    drone.setArmLEDMode(Mode.Pulsing)
-    sleep(3)
+
+    print("Default setting")
+    #drone.setArmDefaultRGB(0,0,255)
+    #drone.setArmDefaultMode(Mode.Flow)
+    #drone.setEyeDefaultRGB(0,0,255)
+    #drone.setEyeDefaultMode(Mode.Blinking)
+    drone.resetDefaultLED()
+
+    sleep(3)     #check time
+
+    print("eye : Blinking Green, arm : DoubleBlinking Green")
+    drone.setEyeMode(Mode.Blinking)
+
+    sleep(3)     #check time
+
+    drone.setEyeRGB(0,255,0)
+
+    sleep(3)     #check time
+
+    drone.setArmMode(Mode.DoubleBlink)
+
+    sleep(3)     #check time
+
     drone.setArmRGB(0,255,0)
-    sleep(3)
 
-    print("eye : Blinking Blue, arm : DoubleBlinking Blue")
-    drone.setLEDMode(Mode.Blinking)
-    drone.setEyeRGB(0,0,255)
-    drone.setLEDMode(Mode.DoubleBlink)
-    drone.setArmRGB(0,0,255)
-
-    # for seeing color
-    sleep(3)
+    sleep(3)     #check time
 
     print("eye : Mix, arm : Flow red")
-    drone.setLEDMode(Mode.Mix)
+    drone.setEyeMode(Mode.Mix)
     drone.setEyeRGB(255,0,0)
 
-    drone.setLEDMode(Mode.Flow)
+    drone.setArmMode(Mode.Flow)
     drone.setArmRGB(255,0,0)
 
     # for seeing color
     sleep(3)
 
     print("eye : Reverse Flow Green, arm : Pulsing Green")
-    drone.setLEDMode(Mode.Pulsing)
+    drone.setEyeMode(Mode.Pulsing)
     drone.setEyeRGB(0,255,0)
 
-    drone.setLEDMode(Mode.ReverseFlow)
+    drone.setArmMode(Mode.ReverseFlow)
     drone.setArmRGB(0,255,0)
 
     # for seeing color
     sleep(3)
 
-    print("eye : Off , arm : Blue")
-    drone.setLEDMode(Mode.Hold)
+    print("eye : Off , arm : Hold Blue")
+    drone.setEyeMode(Mode.Off)
+    drone.setArmMode(Mode.Hold)
     drone.setArmRGB(0,0,255)
-
-
-    #drone.resetLED()
-    #sleep(5)
-    for i in range(10):
-        print("Blue All")
-        drone.setAllRGB(0,0,255)
-        sleep(2)
-
-        print("green All")
-        drone.setAllRGB(0,255,0)
-        sleep(2)
-
-        print("red All")
-        drone.setAllRGB(255,0,0)
-        sleep(2)
 
 def dataTest(drone):
     print("---- START Data Test")
