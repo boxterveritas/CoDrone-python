@@ -25,9 +25,21 @@ def convertByteArrayToString(dataArray):
 
     return string
 
+class EventStatesFlag:
+    def __init__(self):
+        self.upsideDown = None
+        self.takeoff = None
+        self.flying = None
+        self.landing = None
+        self.ready = None
+        self.emergencyStop = None
+        self.crash = None
+        self.lowBattery = None
+
 
 class Timer:
     def __init__(self):
+        # [ time interval, variable to save start time ]
         self.address = [0, 0]
         self.attitude = [0, 0]
         self.angle = [0, 0]
@@ -38,9 +50,21 @@ class Timer:
         self.range = [0, 0]
         self.state = [0, 0]
 
+        # Event states flag
+        self.upsideDown = [5, -5]
+        self.takeoff = [5, -5]
+        self.flying = [10, -10]
+        self.landing = [5, -5]
+        self.ready = [10, -10]
+        self.emergencyStop = [5, -5]
+        self.crash = [3, -3]
+        self.lowBattery = [10, -10]
 
-class Data:
+
+class Data(EventStatesFlag):
     def __init__(self):
+        super().__init__()
+        self.timer = Timer()
         self.address = 0
         self.attitude = 0
         self.accel = 0
@@ -50,10 +74,15 @@ class Data:
         self.gyro = 0
         self.imageFlow = 0
         self.pressure = 0
+        self.reversed = 0
         self.temperature = 0
         self.trim = 0
         self.range = 0
         self.state = 0
+
+        # Depending on using flight commend
+        self.takeoffFuncFlag = 0
+        self.stopFuncFlag = 0
 
     def eventUpdateAddress(self, data):
         self.address = data.address
@@ -70,8 +99,56 @@ class Data:
         self.temperature = data.temperature
     def eventUpdateRange(self, data):
         self.range = data.bottom
-    def eventUpdateState(self, data):
+    def eventUpdateState_(self, data):
+        self.reversed = data.sensorOrientation
+        self.batteryPercent = data.battery
         self.state = data.modeFlight
+    def eventUpdateState(self, data):
+        self.reversed = data.sensorOrientation
+        self.batteryPercent = data.battery
+        self.state = data.modeFlight
+        # check Event states flags
+        start_time = time.time()
+        # automatically checking (request in _receiving function)
+        if self.upsideDown is not None and self.reversed != SensorOrientation.Normal:
+            if start_time - self.timer.upsideDown[1] > self.timer.upsideDown[0]:
+                self.upsideDown()
+                self.timer.upsideDown[1] = start_time
+        if self.lowBattery is not None and self.batteryPercent < 50:
+            if start_time - self.timer.lowBattery[1] > self.timer.lowBattery[0]:
+                self.lowBattery()
+                self.timer.lowBattery[1] = start_time
+        if self.ready is not None and self.state == ModeFlight.Ready:
+            if start_time - self.timer.ready[1] > self.timer.ready[0]:
+                self.ready()
+                self.timer.ready[1] = start_time
+                return
+        if self.flying is not None and self.state == ModeFlight.Flight:
+            if start_time - self.timer.flying[1] > self.timer.flying[0]:
+                self.flying()
+                self.timer.flying[1] = start_time
+                return
+        if self.landing is not None and self.state == ModeFlight.Landing:
+            if start_time - self.timer.landing[1] > self.timer.landing[0]:
+                self.landing()
+                self.timer.landing[1] = start_time
+                return
+        # TO DO
+        # How to check crash ? (ModeFlight.accident is too short time)
+        if self.crash is not None and self.state == ModeFlight.Accident:
+            if start_time - self.timer.crash[1] > self.timer.crash[0]:
+                self.crash()
+                self.timer.crash[1] = start_time
+                return
+        # whenever user executes flight function
+        if self.takeoff is not None and self.takeoffFuncFlag:
+            self.takeoff()
+            self.takeoffFuncFlag = 0
+            return
+        if self.emergencyStop is not None and self.stopFuncFlag:
+            self.emergencyStop()
+            self.stopFuncFlag = 0
+            return
     def eventUpdateTrim(self, data):
         self.trim = Flight(data.roll, data.pitch, data.yaw, data.throttle)
     def eventUpdateImageFlow(self, data):
@@ -126,7 +203,12 @@ class CoDrone:
         self.close()
 
     def _receiving(self):
+        count = 0
         while self._flagThreadRun:
+            count += 1
+            if(count == 10000):
+                count = 0
+                self.sendRequest(DataType.State)
             self._bufferQueue.put(self._serialport.read())
             # auto-update when background check for receive data is on
             if self._flagCheckBackground:
@@ -361,7 +443,6 @@ class CoDrone:
         return self._storageHeader.d[dataType]
 
     def getData(self, dataType):
-
         if (not isinstance(dataType, DataType)):
             return None
 
@@ -715,6 +796,8 @@ class CoDrone:
     ### FLIGHT EVENTS -----------------------
 
     def takeoff(self):
+        # Event States
+        self._data.takeoffFuncFlag = 1
 
         header = Header()
 
@@ -727,7 +810,7 @@ class CoDrone:
         data.option = FlightEvent.TakeOff.value
 
         self.transfer(header, data)
-        sleep(5)
+        sleep(3)
 
     def land(self):
         self._control.setAll(0, 0, 0, 0)
@@ -744,7 +827,7 @@ class CoDrone:
 
         self.transfer(header, data)
 
-    def hover(self, duration):
+    def hover(self, duration = 0):
         timeStart = time.time()
         header = Header()
 
@@ -759,6 +842,9 @@ class CoDrone:
             sleep(0.02)
 
     def emergencyStop(self):
+        # Event states
+        self._data.stopFuncFlag = 1
+
         self._control.setAll(0, 0, 0, 0)
 
         header = Header()
@@ -1066,6 +1152,31 @@ class CoDrone:
             return None
 
     ### LEDS ----------- END
+
+    ### EVENT STATES -------- START
+
+    def onUpsideDown(self, func):
+        self._data.upsideDown = func
+
+    def onTakeoff(self, func):
+        self._data.takeoff = func
+
+    def onFlying(self, func):
+        self._data.flying = func
+
+    def onReady(self, func):
+        self._data.ready = func
+
+    def onEmergencyStop(self, func):
+        self._data.emergencyStop = func
+
+    def onCrash(self, func):
+        self._data.crash = func
+
+    def onLowBattery(self, func):
+        self._data.lowBattery = func
+
+    ### EVENT STATES -------- END
 
     # Setup Start
     def sendCommand(self, commandType, option=0):

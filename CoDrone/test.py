@@ -190,30 +190,64 @@ def combineTest(drone):
         height = drone.getHeight()
     drone.land()
 
-def testDrone():
-    drone = CoDrone()
+def onTest(drone):
+    def blueArm():
+        drone.setArmRGB(0,0,255)
+        print("blueArm, takeoff")
+    def blueEye():
+        drone.setEyeRGB(0,0,255)
+        print("blueEye, crash")
+    def doubleBlinkEye():
+        drone.setEyeMode(Mode.DoubleBlink)
+        print("doubleBlinkEye, ready")
+    def greenArm():
+        drone.setArmRGB(0,255,0)
+        print("greenArm, emergency")
+    def greenEye():
+        drone.setEyeRGB(0,255,0)
+        print("greenEye, upsidedown")
+    def doubleBlinkArm():
+        drone.setArmMode(Mode.DoubleBlink)
+        print("doubleBlinkArm, fly")
+    def RedBlinkArm():
+        drone.setArmRGB(255,0,0)
+        drone.setArmMode(Mode.Blinking)
+        print("redArm, low Battery")
 
     while(not drone.isConnected()):
         print("printing")
         drone.connect()
         sleep(3)
 
-    drone.sendRequest(DataType.LightModeColor)
-    sleep(3)
+    drone.onTakeoff(blueArm)
+    drone.onCrash(blueEye)
+    drone.onReady(doubleBlinkEye)
+    drone.onEmergencyStop(greenArm)
+    drone.onUpsideDown(greenEye)
+    drone.onFlying(doubleBlinkArm())
+    drone.onLowBattery(RedBlinkArm())
+
+def testDrone():
+
+    drone = CoDrone()
+
+    #onTest(drone)
+
+    while(1):
+        sleep(10)
+        drone.takeoff()
+        drone.hover(10)
+        drone.emergencyStop()
+        sleep(3)
+        drone.takeoff()
+
     #flightTest(drone)
     #drone.takeoff()
     #drone.hover(0)
-    colorTest(drone)
+    #colorTest(drone)
+    #moveTest(drone)
+    #goTest(drone)
 
-    moveTest(drone)
-    goTest(drone)
-
-    drone.takeoff()
-    drone.go(Direction.Up)
-    print("hover")
-    drone.hover(2)
-    dataTest(drone)
-    drone.land()
     drone.close()
 
 def testCoDrone():
