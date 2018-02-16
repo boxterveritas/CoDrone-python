@@ -203,13 +203,13 @@ class CoDrone:
         self.close()
 
     def _receiving(self):
-        count = 0
+        start_timer = time.time()
         while self._flagThreadRun:
-            count += 1
-            if(count == 10000):
-                count = 0
+            if (time.time() - start_timer) > 1:
+                start_timer = time.time()
                 self.sendRequest(DataType.State)
             self._bufferQueue.put(self._serialport.read())
+
             # auto-update when background check for receive data is on
             if self._flagCheckBackground:
                 while self.check() != DataType.None_:

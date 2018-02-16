@@ -230,8 +230,10 @@ def onTest(drone):
 def testDrone():
 
     drone = CoDrone()
-
-    #onTest(drone)
+    while not drone.isConnected():
+        drone.connect()
+        sleep(3)
+    onTest(drone)
 
     while(1):
         sleep(10)
