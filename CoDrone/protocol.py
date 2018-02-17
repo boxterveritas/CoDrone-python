@@ -493,6 +493,18 @@ class Command3(ISerializable):
 
 # Light Start
 
+"""
+User 
+"""
+class Mode(Enum):
+    Off = 0x10
+    Hold = 0x11
+    Mix = 0x12
+    Blinking = 0x13
+    DoubleBlink = 0x14
+    Pulsing = 0x15
+    Flow = 0x16
+    ReverseFlow = 0x17
 
 class LightModeDrone(Enum):
     None_ = 0x00

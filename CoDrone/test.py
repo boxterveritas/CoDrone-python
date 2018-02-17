@@ -261,4 +261,4 @@ def testCoDrone():
         sleep(3)
 
 
-testDrone()
+#testDrone()

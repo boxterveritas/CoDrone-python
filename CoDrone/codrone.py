@@ -25,7 +25,7 @@ def convertByteArrayToString(dataArray):
 
     return string
 
-class EventStatesFlag:
+class EventStatesFunc:
     def __init__(self):
         self.upsideDown = None
         self.takeoff = None
@@ -38,30 +38,31 @@ class EventStatesFlag:
 
 
 class Timer:
+    ## TEST
     def __init__(self):
         # [ time interval, variable to save start time ]
         self.address = [0, 0]
         self.attitude = [0, 0]
         self.angle = [0, 0]
-        self.battery = [5, -5]
+        self.battery = [5, 0]
         self.imu = [0, 0]
-        self.pressure = [3, -3]
+        self.pressure = [3, 0]
         self.trim = [0, 0]
         self.range = [0, 0]
         self.state = [0, 0]
 
         # Event states flag
-        self.upsideDown = [5, -5]
-        self.takeoff = [5, -5]
-        self.flying = [10, -10]
-        self.landing = [5, -5]
-        self.ready = [10, -10]
-        self.emergencyStop = [5, -5]
-        self.crash = [3, -3]
-        self.lowBattery = [10, -10]
+        self.upsideDown = [5, 0]
+        self.takeoff = [5, 0]
+        self.flying = [10, 0]
+        self.landing = [5, 0]
+        self.ready = [10, 0]
+        self.emergencyStop = [5, 0]
+        self.crash = [3, 0]
+        self.lowBattery = [10, 0]
 
 
-class Data(EventStatesFlag):
+class Data(EventStatesFunc):
     def __init__(self):
         super().__init__()
         self.timer = Timer()
@@ -114,7 +115,7 @@ class Data(EventStatesFlag):
             if start_time - self.timer.upsideDown[1] > self.timer.upsideDown[0]:
                 self.upsideDown()
                 self.timer.upsideDown[1] = start_time
-        if self.lowBattery is not None and self.batteryPercent < 50:
+        if self.lowBattery is not None and self.batteryPercent < self.LowBatteryPercent:
             if start_time - self.timer.lowBattery[1] > self.timer.lowBattery[0]:
                 self.lowBattery()
                 self.timer.lowBattery[1] = start_time
@@ -133,8 +134,8 @@ class Data(EventStatesFlag):
                 self.landing()
                 self.timer.landing[1] = start_time
                 return
-        # TO DO
-        # How to check crash ? (ModeFlight.accident is too short time)
+        ## TO DO
+        ## How to check crash ? (ModeFlight.accident is too short time)
         if self.crash is not None and self.state == ModeFlight.Accident:
             if start_time - self.timer.crash[1] > self.timer.crash[0]:
                 self.crash()
@@ -153,6 +154,11 @@ class Data(EventStatesFlag):
         self.trim = Flight(data.roll, data.pitch, data.yaw, data.throttle)
     def eventUpdateImageFlow(self, data):
         self.imageFlow = Position(data.positionX, data.positionY)
+
+    ## debugging
+    ## TEST
+    def eventUpdateAck(self, data):
+        print(data)
 
 
 class CoDrone:
@@ -180,9 +186,6 @@ class CoDrone:
         self._flagShowReceiveData = flagShowReceiveData
 
         self._eventHandler = EventHandler()
-        self._data = Data()
-        self._timer = Timer()
-        self._setAllEventHandler()
 
         self._storageHeader = StorageHeader()
         self._storage = Storage()
@@ -194,9 +197,22 @@ class CoDrone:
         self._flagConnected = False  # when using auto connect, notice connection with device
         self.timeStartProgram = time.time()  # record program starting time
 
-        self.LEDColor = [255,0,0]
-        self.LEDArmMode = LightModeDrone.ArmHold
-        self.LEDEyeMode = LightModeDrone.EyeHold
+        # Data
+        self._data = Data()
+        self._timer = Timer()
+        self._setAllEventHandler()
+        self._lowBatteryPercent = 30
+
+        # Flight Command
+        ## TEST
+        self._controlSleep = 0.5
+
+        # LED
+        self._LEDColor = [255, 0, 0]
+        self._LEDArmMode = LightModeDrone.ArmHold
+        self._LEDEyeMode = LightModeDrone.EyeHold
+        self._LEDInterval = 100
+        self._LEDSleep = 0.25
         colorama.init()
 
     def __del__(self):
@@ -430,6 +446,9 @@ class CoDrone:
         self._eventHandler.d[DataType.TrimFlight] = self._data.eventUpdateTrim
         self._eventHandler.d[DataType.ImageFlow] = self._data.eventUpdateImageFlow
 
+        ## debugging
+        self._eventHandler.d[DataType.Ack] = self._data.eventUpdataAck
+
     def setEventHandler(self, dataType, eventHandler):
         if (not isinstance(dataType, DataType)):
             return
@@ -486,6 +505,7 @@ class CoDrone:
             "LinkDiscoveredDevice / {0} / {1} / {2} / {3}".format(data.index, convertByteArrayToString(data.address),
                                                                   data.name, data.rssi))
 
+    ## TEST
     def connect(self, portName="None", deviceName="None", flagSystemReset=False):
 
         # case for serial port is None(connect to last connection)
@@ -585,6 +605,11 @@ class CoDrone:
             else:
                 self._printError("Could not find PETRONE.")
 
+        ## TO DO
+        ## How to alert low battery
+        if self._flagConnected and self.getBatteryPercentage() < self._lowBatteryPercent:
+            print("Low Battery!")
+
         return self._flagConnected
 
     def _printLog(self, message):
@@ -594,13 +619,11 @@ class CoDrone:
                                                          message) + Style.RESET_ALL)
 
     def _printError(self, message):
-
         if self._flagShowErrorMessage and message is not None:
             print(
                 Fore.RED + "[{0:10.03f}] {1}".format((time.time() - self.timeStartProgram), message) + Style.RESET_ALL)
 
     def _printTransferData(self, dataArray):
-
         if (self._flagShowTransferData) and (dataArray != None) and (len(dataArray) > 0):
             print(Back.YELLOW + Fore.BLACK + convertByteArrayToString(dataArray) + Style.RESET_ALL)
 
@@ -665,6 +688,8 @@ class CoDrone:
         control.setAll(roll,pitch,yaw,throttle)
         self.transfer(header, control)
 
+        sleep(self._controlSleep)
+
     def sendControlDuration(self, roll, pitch, yaw, throttle, duration):
         if(duration == 0):
             return self.sendControl(roll,pitch, yaw,throttle)
@@ -684,6 +709,8 @@ class CoDrone:
             sleep(0.02)
         control.setAll(0, 0, 0, 0)
         self.transfer(header, control)
+
+        sleep(self._controlSleep)
     ### Control End ---------
 
 
@@ -942,15 +969,15 @@ class CoDrone:
 
         data = LightModeColor()
 
-        data.mode = self.LEDArmMode
+        data.mode = self._LEDArmMode
         data.color.r = red
         data.color.g = green
         data.color.b = blue
-        data.interval = 100
-        self.LEDColor = [red, green, blue]
+        data.interval = self._LEDInterval
+        self._LEDColor = [red, green, blue]
 
         self.transfer(header, data)
-        sleep(0.25)
+        sleep(self._LEDSleep)
 
     def setEyeRGB(self, red, green, blue):
         if ((not isinstance(red, int)) or
@@ -965,25 +992,44 @@ class CoDrone:
 
         data = LightModeColor()
 
-        data.mode = self.LEDEyeMode
+        data.mode = self._LEDEyeMode
         data.color.r = red
         data.color.g = green
         data.color.b = blue
-        data.interval = 100
-        self.LEDColor = [red, green, blue]
+        data.interval = self._LEDInterval
+        self._LEDColor = [red, green, blue]
 
         self.transfer(header, data)
-        sleep(0.25)
+        sleep(self._LEDSleep)
 
+    ## TEST
     def setAllRGB(self, red, green, blue):
-
         if ((not isinstance(red, int)) or
                 (not isinstance(green, int)) or
                 (not isinstance(blue, int))):
             return None
 
-        self.setArmRGB(red, green, blue)
-        self.setEyeRGB(red, green, blue)
+        header = Header()
+
+        ## TO DO
+        ## LightModeColor2 is not working
+        header.dataType = DataType.LightModeColor
+        header.length = LightModeColor.getSize()
+
+        data = LightModeColor()
+
+        data.mode = self._LEDEyeMode
+        data.color.r = red
+        data.color.g = green
+        data.color.b = blue
+        data.interval = self._LEDInterval
+        self._LEDColor = [red, green, blue]
+
+        self.transfer(header, data)
+        sleep(self._LEDSleep + 0.05)
+
+        data.mode = self._LEDArmMode
+        self.transfer(header, data)
 
     def setArmDefaultRGB(self, red, green, blue):
         if ((not isinstance(red, int)) or
@@ -997,15 +1043,15 @@ class CoDrone:
         header.length = LightModeDefaultColor.getSize()
 
         data = LightModeDefaultColor()
-        data.mode = self.LEDArmMode
-        self.LEDColor = [red, green, blue]
+        data.mode = self._LEDArmMode
+        self._LEDColor = [red, green, blue]
         data.color.r = red
         data.color.g = green
         data.color.b = blue
-        data.interval = 100
+        data.interval = self._LEDInterval
 
         self.transfer(header, data)
-        sleep(0.25)
+        sleep(self._LEDSleep)
 
     def setEyeDefaultRGB(self, red, green, blue):
         if ((not isinstance(red, int)) or
@@ -1019,15 +1065,15 @@ class CoDrone:
         header.length = LightModeDefaultColor.getSize()
 
         data = LightModeDefaultColor()
-        data.mode = self.LEDEyeMode
-        self.LEDColor = [red, green, blue]
+        data.mode = self._LEDEyeMode
+        self._LEDColor = [red, green, blue]
         data.color.r = red
         data.color.g = green
         data.color.b = blue
-        data.interval = 100
+        data.interval = self._LEDInterval
 
         self.transfer(header, data)
-        sleep(0.25)
+        sleep(self._LEDSleep)
 
     def resetDefaultLED(self):
         header = Header()
@@ -1040,17 +1086,22 @@ class CoDrone:
         data.color.r = 255
         data.color.g = 0
         data.color.b = 0
-        data.interval = 100
+        data.interval = self._LEDInterval
 
         self.transfer(header, data)
-        sleep(0.3)
+        sleep(self.LEDSleep + 0.05)
 
         data.mode = LightModeDrone.ArmHold
         self.transfer(header, data)
-        sleep(0.25)
+        sleep(self._LEDSleep)
 
+    ##TEST
     def setEyeMode(self, mode):
-        self._changeEyeMode(mode)
+        # EYE doesn't have flow mode
+        if not isinstance(mode, Mode) or mode > Mode.Pulsing:
+            return None
+
+        self._LEDEyeMode = mode
 
         header = Header()
 
@@ -1059,15 +1110,19 @@ class CoDrone:
 
         data = LightModeColor()
 
-        data.mode = self.LEDEyeMode
-        data.color.r, data.color.g, data.color.b = self.LEDColor
-        data.interval = 100
+        data.mode = self._LEDEyeMode
+        data.color.r, data.color.g, data.color.b = self._LEDColor
+        data.interval = self._LEDInterval
 
         self.transfer(header, data)
-        sleep(0.25)
+        sleep(self._LEDSleep)
 
+    ## TEST
     def setArmMode(self, mode):
-        self._changeArmMode(mode)
+        if not isinstance(mode, Mode):
+            return None
+
+        self._LEDArmMode = mode + 0x30
 
         header = Header()
 
@@ -1076,15 +1131,19 @@ class CoDrone:
 
         data = LightModeColor()
 
-        data.mode = self.LEDArmMode
-        data.color.r, data.color.g, data.color.b = self.LEDColor
-        data.interval = 100
+        data.mode = self._LEDArmMode
+        data.color.r, data.color.g, data.color.b = self._LEDColor
+        data.interval = self._LEDInterval
 
         self.transfer(header, data)
-        sleep(0.25)
+        sleep(self._LEDSleep)
 
+    ## TEST
     def setArmDefaultMode(self, mode):
-        self._changeArmMode(mode)
+        if not isinstance(mode, Mode):
+            return None
+
+        self._LEDArmMode = mode + 0x30
 
         header = Header()
 
@@ -1092,15 +1151,20 @@ class CoDrone:
         header.length = LightModeDefaultColor.getSize()
 
         data = LightModeDefaultColor()
-        data.mode = self.LEDArmMode
-        data.color.r, data.color.g, data.color.b = self.LEDColor
-        data.interval = 100
+        data.mode = self._LEDArmMode
+        data.color.r, data.color.g, data.color.b = self._LEDColor
+        data.interval = self._LEDInterval
 
         self.transfer(header, data)
-        sleep(0.25)
+        sleep(self._LEDSleep)
 
+    ## TEST
     def setEyeDefaultMode(self, mode):
-        self._changeEyeMode(mode)
+        # EYE doesn't have flow mode
+        if not isinstance(mode, Mode) or mode > Mode.Pulsing:
+            return None
+
+        self._LEDEyeMode = mode
 
         header = Header()
 
@@ -1108,48 +1172,12 @@ class CoDrone:
         header.length = LightModeDefaultColor.getSize()
 
         data = LightModeDefaultColor()
-        data.mode = self.LEDEyeMode
-        data.color.r, data.color.g, data.color.b = self.LEDColor
-        data.interval = 100
+        data.mode = self._LEDEyeMode
+        data.color.r, data.color.g, data.color.b = self._LEDColor
+        data.interval = self._LEDInterval
 
         self.transfer(header, data)
-        sleep(0.25)
-
-    def _changeEyeMode(self, mode):
-        if mode == Mode.Pulsing:
-            self.LEDEyeMode = LightModeDrone.EyeDimming
-        elif mode == Mode.Blinking:
-            self.LEDEyeMode = LightModeDrone.EyeFlicker
-        elif mode == Mode.DoubleBlink:
-            self.LEDEyeMode = LightModeDrone.EyeFlickerDouble
-        elif mode == Mode.Hold:
-            self.LEDEyeMode = LightModeDrone.EyeHold
-        elif mode == Mode.Mix:
-            self.LEDEyeMode = LightModeDrone.EyeMix
-        elif mode == Mode.Off:
-            self.LEDEyeMode = LightModeDrone.EyeNone
-        else:
-            return None
-
-    def _changeArmMode(self, mode):
-        if mode == Mode.Pulsing:
-            self.LEDArmMode = LightModeDrone.ArmDimming
-        elif mode == Mode.Blinking:
-            self.LEDArmMode = LightModeDrone.ArmFlicker
-        elif mode == Mode.DoubleBlink:
-            self.LEDArmMode = LightModeDrone.ArmFlickerDouble
-        elif mode == Mode.Flow:
-            self.LEDArmMode = LightModeDrone.ArmFlow
-        elif mode == Mode.ReverseFlow:
-            self.LEDArmMode = LightModeDrone.ArmFlowReverse
-        elif mode == Mode.Hold:
-            self.LEDArmMode = LightModeDrone.ArmHold
-        elif mode == Mode.Mix:
-            self.LEDArmMode = LightModeDrone.ArmMix
-        elif mode == Mode.Off:
-            self.LEDArmMode = LightModeDrone.ArmNone
-        else:
-            return None
+        sleep(self._LEDSleep)
 
     ### LEDS ----------- END
 
