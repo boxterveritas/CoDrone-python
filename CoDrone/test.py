@@ -8,11 +8,11 @@ def colorTest(drone):
     print("START Color Test ----")
 
     print("Default setting")
-    #drone.setArmDefaultRGB(0,0,255)
-    #drone.setArmDefaultMode(Mode.Flow)
-    #drone.setEyeDefaultRGB(0,0,255)
-    #drone.setEyeDefaultMode(Mode.Blinking)
-    drone.resetDefaultLED()
+    drone.setArmDefaultRGB(0,0,255)
+    drone.setArmDefaultMode(Mode.Flow)
+    drone.setEyeDefaultRGB(0,0,255)
+    drone.setEyeDefaultMode(Mode.Blinking)
+    #drone.resetDefaultLED()
 
     sleep(3)     #check time
 
@@ -57,6 +57,11 @@ def colorTest(drone):
     drone.setEyeMode(Mode.Off)
     drone.setArmMode(Mode.Hold)
     drone.setArmRGB(0,0,255)
+
+    sleep(3)
+    print("all green!! ")
+    drone.setAllRGB(0,255,0)
+
 
 def dataTest(drone):
     print("---- START Data Test")
@@ -219,13 +224,14 @@ def onTest(drone):
         drone.connect()
         sleep(3)
 
-    drone.onTakeoff(blueArm)
-    drone.onCrash(blueEye)
-    drone.onReady(doubleBlinkEye)
-    drone.onEmergencyStop(greenArm)
-    drone.onUpsideDown(greenEye)
-    drone.onFlying(doubleBlinkArm())
-    drone.onLowBattery(RedBlinkArm())
+    #drone.onTakeoff(blueArm)
+    #drone.onCrash(blueEye)
+    #drone.onReady(doubleBlinkEye)
+    #drone.onEmergencyStop(greenArm)
+    #drone.onUpsideDown(greenEye)
+    #drone.onFlying(doubleBlinkArm)
+    drone.onLowBattery(RedBlinkArm)
+
 
 def testDrone():
 
@@ -234,14 +240,7 @@ def testDrone():
         drone.connect()
         sleep(3)
     onTest(drone)
-
-    while(1):
-        sleep(10)
-        drone.takeoff()
-        drone.hover(10)
-        drone.emergencyStop()
-        sleep(3)
-        drone.takeoff()
+    colorTest(drone)
 
     #flightTest(drone)
     #drone.takeoff()
@@ -261,4 +260,4 @@ def testCoDrone():
         sleep(3)
 
 
-#testDrone()
+testDrone()

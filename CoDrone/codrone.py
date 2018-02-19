@@ -38,7 +38,6 @@ class EventStatesFunc:
 
 
 class Timer:
-    ## TEST
     def __init__(self):
         # [ time interval, variable to save start time ]
         self.address = [0, 0]
@@ -64,6 +63,9 @@ class Timer:
 
 class Data(EventStatesFunc):
     def __init__(self):
+        # criterion for low battery
+        self._LowBatteryPercent = 30
+
         super().__init__()
         self.timer = Timer()
         self.address = 0
@@ -115,9 +117,10 @@ class Data(EventStatesFunc):
             if start_time - self.timer.upsideDown[1] > self.timer.upsideDown[0]:
                 self.upsideDown()
                 self.timer.upsideDown[1] = start_time
-        if self.lowBattery is not None and self.batteryPercent < self.LowBatteryPercent:
+        if self.lowBattery is not None and self.batteryPercent < self._LowBatteryPercent:
             if start_time - self.timer.lowBattery[1] > self.timer.lowBattery[0]:
                 self.lowBattery()
+                print(start_time,self.timer.lowBattery[1])
                 self.timer.lowBattery[1] = start_time
         if self.ready is not None and self.state == ModeFlight.Ready:
             if start_time - self.timer.ready[1] > self.timer.ready[0]:
@@ -155,10 +158,6 @@ class Data(EventStatesFunc):
     def eventUpdateImageFlow(self, data):
         self.imageFlow = Position(data.positionX, data.positionY)
 
-    ## debugging
-    ## TEST
-    def eventUpdateAck(self, data):
-        print(data)
 
 
 class CoDrone:
@@ -446,9 +445,6 @@ class CoDrone:
         self._eventHandler.d[DataType.TrimFlight] = self._data.eventUpdateTrim
         self._eventHandler.d[DataType.ImageFlow] = self._data.eventUpdateImageFlow
 
-        ## debugging
-        self._eventHandler.d[DataType.Ack] = self._data.eventUpdataAck
-
     def setEventHandler(self, dataType, eventHandler):
         if (not isinstance(dataType, DataType)):
             return
@@ -505,7 +501,7 @@ class CoDrone:
             "LinkDiscoveredDevice / {0} / {1} / {2} / {3}".format(data.index, convertByteArrayToString(data.address),
                                                                   data.name, data.rssi))
 
-    ## TEST
+
     def connect(self, portName="None", deviceName="None", flagSystemReset=False):
 
         # case for serial port is None(connect to last connection)
@@ -1002,7 +998,6 @@ class CoDrone:
         self.transfer(header, data)
         sleep(self._LEDSleep)
 
-    ## TEST
     def setAllRGB(self, red, green, blue):
         if ((not isinstance(red, int)) or
                 (not isinstance(green, int)) or
@@ -1098,7 +1093,7 @@ class CoDrone:
     ##TEST
     def setEyeMode(self, mode):
         # EYE doesn't have flow mode
-        if not isinstance(mode, Mode) or mode > Mode.Pulsing:
+        if not isinstance(mode, Mode) or mode.value > Mode.Pulsing.value:
             return None
 
         self._LEDEyeMode = mode
@@ -1117,12 +1112,11 @@ class CoDrone:
         self.transfer(header, data)
         sleep(self._LEDSleep)
 
-    ## TEST
     def setArmMode(self, mode):
         if not isinstance(mode, Mode):
             return None
 
-        self._LEDArmMode = mode + 0x30
+        self._LEDArmMode = LightModeDrone(mode.value + 0x30)
 
         header = Header()
 
@@ -1138,12 +1132,11 @@ class CoDrone:
         self.transfer(header, data)
         sleep(self._LEDSleep)
 
-    ## TEST
     def setArmDefaultMode(self, mode):
         if not isinstance(mode, Mode):
             return None
 
-        self._LEDArmMode = mode + 0x30
+        self._LEDArmMode = LightModeDrone(mode.value + 0x30)
 
         header = Header()
 
@@ -1158,10 +1151,9 @@ class CoDrone:
         self.transfer(header, data)
         sleep(self._LEDSleep)
 
-    ## TEST
     def setEyeDefaultMode(self, mode):
         # EYE doesn't have flow mode
-        if not isinstance(mode, Mode) or mode > Mode.Pulsing:
+        if not isinstance(mode, Mode) or mode.value > Mode.Pulsing.value:
             return None
 
         self._LEDEyeMode = mode
