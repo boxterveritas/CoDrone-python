@@ -204,7 +204,7 @@ class CoDrone:
 
         # Flight Command
         ## TEST
-        self._controlSleep = 0.5
+        self._controlSleep = 1
 
         # LED
         self._LEDColor = [255, 0, 0]
@@ -684,8 +684,6 @@ class CoDrone:
         control.setAll(roll,pitch,yaw,throttle)
         self.transfer(header, control)
 
-        sleep(self._controlSleep)
-
     def sendControlDuration(self, roll, pitch, yaw, throttle, duration):
         if(duration == 0):
             return self.sendControl(roll,pitch, yaw,throttle)
@@ -703,10 +701,9 @@ class CoDrone:
         while (time.time() - timeStart) < duration:
             self.transfer(header, control)
             sleep(0.02)
-        control.setAll(0, 0, 0, 0)
-        self.transfer(header, control)
 
-        sleep(self._controlSleep)
+        self.hover(self._controlSleep)
+
     ### Control End ---------
 
 
@@ -769,7 +766,7 @@ class CoDrone:
             self.sendControl(*self._control.getAll())
 
         # move(duration)
-        elif throttle is None:
+        elif roll is None:
             self.sendControlDuration(*self._control.getAll(), duration)
 
         # move(duration, roll, pitch, yaw, throttle)

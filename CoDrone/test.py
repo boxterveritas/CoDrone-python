@@ -1,4 +1,6 @@
 from codrone import *
+import matplotlib.pyplot as plt
+import math
 flag = 0
 battery = 0
 IR = 0
@@ -232,16 +234,90 @@ def onTest(drone):
     #drone.onFlying(doubleBlinkArm)
     drone.onLowBattery(RedBlinkArm)
 
+"""
+for (float z = -1.0; z <= 1.0; z += intervalZ) {
+		for (float d = 0; d <= M_PI2; d += intervalD) {
+			float y = sqrt(1.0 - pow(z, 2)) * cos(d);
+			float x = sqrt(1.0 - pow(z, 2)) * sin(d);
+"""
+def testCircle(drone):
+    x_list = []
+    y_list = []
+    num = 8
+    interval = (math.pi * 2) / num
+    for d in [interval * i for i in range(num)]:
+        x_list.append(int((math.cos(d)*100-100)/2))
+        y_list.append(int(math.sin(d)*100/2))
+
+    for i in range(1,num):
+        x_list[i-1] = x_list[i] - x_list[i-1]
+        y_list[i-1] = y_list[i] - y_list[i-1]
+    x_list[num-1] = -x_list[num-1]
+    y_list[num-1] = -y_list[num-1]
+    print(x_list, y_list)
+    drone.takeoff()
+    for i in range(num):
+        drone.move(0.005,y_list[i],x_list[i],0,0)
+    drone.hover(5)
+    drone.land()
+
+def testL(drone):
+    drone.takeoff()
+    drone.move(0.1, 0,-80,0,0)
+    drone.move(0.1, 30,0,0,0)
+    drone.hover(3)
+    drone.land()
+
+def testSquare(drone):
+    drone.takeoff()
+    drone.move(1, 30,0,0,0)
+    drone.move(1, 0,30,0,0)
+    drone.move(1, -30,0,0,0)
+    drone.move(1, 0,-30,0,0)
+
+
+    drone.land()
+
+def testZigZag(drone):
+    drone.takeoff()
+    drone.move(1, -30,20,0,0)
+    drone.move(1, 30,20,0,0)
+    drone.move(1, -30,20,0,0)
+    drone.move(1, 30,20,0,0)
+    drone.land()
+
+def testHeight(drone):
+    drone.takeoff()
+    if(drone.getHeight() < 1500):
+        drone.move(0.2, 0,0,0,50)
+    drone.land()
+
+def testTurn(drone):
+    drone.takeoff()
+    for i in range(10,100, 10):
+        print(i)
+        drone.sendControlDuration(0, 0, i, 0, 1)
+        drone.hover(3)
 
 def testDrone():
-
     drone = CoDrone()
     while not drone.isConnected():
-        drone.connect()
+        drone.connect("COM10", "PETRONE 6187")
         sleep(3)
-    onTest(drone)
-    colorTest(drone)
-
+    print(drone.getBatteryPercentage())
+    #print(drone.getHeight())
+    #onTest(drone)
+    #colorTest(drone)
+    #testCircle(drone)
+    #sleep(3)
+    #testL(drone)
+    #sleep(3)
+    #testSquare(drone)
+    #sleep(3)
+    #testHeight(drone)
+    #sleep(3)
+    testZigZag(drone)
+    sleep(3)
     #flightTest(drone)
     #drone.takeoff()
     #drone.hover(0)
