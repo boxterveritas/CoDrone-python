@@ -206,6 +206,7 @@ class CoDrone:
         ## TEST
         self._controlSleep = 1
 
+
         # LED
         self._LEDColor = [255, 0, 0]
         self._LEDArmMode = LightModeDrone.ArmHold
@@ -220,9 +221,9 @@ class CoDrone:
     def _receiving(self):
         start_timer = time.time()
         while self._flagThreadRun:
-            if (time.time() - start_timer) > 1:
+            if (time.time() - start_timer) > 2:
                 start_timer = time.time()
-                self.sendRequest(DataType.State)
+                #self.sendRequest(DataType.State)
             self._bufferQueue.put(self._serialport.read())
 
             # auto-update when background check for receive data is on
@@ -688,7 +689,6 @@ class CoDrone:
         if(duration == 0):
             return self.sendControl(roll,pitch, yaw,throttle)
 
-        timeStart = time.time()
         header = Header()
 
         header.dataType = DataType.Control
@@ -698,6 +698,8 @@ class CoDrone:
         control.setAll(roll, pitch, yaw, throttle)
 
         self.transfer(header, control)
+
+        timeStart = time.time()
         while (time.time() - timeStart) < duration:
             self.transfer(header, control)
             sleep(0.02)
@@ -774,7 +776,6 @@ class CoDrone:
             self.sendControlDuration(roll,pitch,yaw,throttle, duration)
 
     def go(self, direction, duration = 0.5, power = 50):
-
         # string matching : forward/backward , right/left, up/down
         pitch = ((direction == Direction.Forward) - (direction == Direction.Backward)) * power
         roll = ((direction == Direction.Right) - (direction == Direction.Left)) * power
@@ -786,7 +787,7 @@ class CoDrone:
     def turn(self, direction, duration=None, power=50):
         yaw = ((direction == Direction.Right) - (direction == Direction.Left)) * power
         if (duration is None):
-            self.sendControl(0, 0, yaw, 0)
+             self.sendControl(0, 0, yaw, 0)
         else:
         	self.sendControlDuration(0, 0, yaw, 0, duration)
 
@@ -859,7 +860,8 @@ class CoDrone:
 
         self.transfer(header, control)
         while (time.time() - timeStart) < duration:
-            sleep(0.02)
+            sleep(0.1)
+            self.transfer(header, control)
 
     def emergencyStop(self):
         # Event states
