@@ -42,7 +42,6 @@ class Timer:
         # [ time interval, variable to save start time ]
         self.address = [0, 0]
         self.attitude = [0, 0]
-        self.angle = [0, 0]
         self.battery = [5, 0]
         self.imu = [0, 0]
         self.pressure = [3, 0]
@@ -69,12 +68,11 @@ class Data(EventStatesFunc):
         super().__init__()
         self.timer = Timer()
         self.address = 0
-        self.attitude = 0
-        self.accel = 0
-        self.angle = 0
+        self.attitude = Angle(0,0,0)
+        self.accel = Axis(0,0,0)
         self.batteryPercent = 0
         self.batteryVoltage = 0
-        self.gyro = 0
+        self.gyro = Angle(0,0,0)
         self.imageFlow = 0
         self.pressure = 0
         self.reversed = 0
@@ -204,7 +202,7 @@ class CoDrone:
 
         # Flight Command
         ## TEST
-        self._controlSleep = 1
+        self._controlSleep = 2
 
 
         # LED
@@ -604,8 +602,11 @@ class CoDrone:
 
         ## TO DO
         ## How to alert low battery
-        if self._flagConnected and self.getBatteryPercentage() < self._lowBatteryPercent:
-            print("Low Battery!")
+        if self.isConnected():
+            battery =  self.getBatteryPercentage()
+            print("Drone battery : [",battery,"]")
+            if self._flagConnected and battery < self._lowBatteryPercent:
+                print("Low Battery!!")
 
         return self._flagConnected
 
@@ -704,7 +705,8 @@ class CoDrone:
             self.transfer(header, control)
             sleep(0.02)
 
-        self.hover(self._controlSleep)
+        self.sendControl(0,0,0,0)
+        sleep(self._controlSleep)
 
     ### Control End ---------
 
@@ -766,6 +768,7 @@ class CoDrone:
         # move()
         if duration is None:
             self.sendControl(*self._control.getAll())
+            sleep(self._controlSleep)
 
         # move(duration)
         elif roll is None:
@@ -786,14 +789,40 @@ class CoDrone:
 
     def turn(self, direction, duration=None, power=50):
         yaw = ((direction == Direction.Right) - (direction == Direction.Left)) * power
-        if (duration is None):
-             self.sendControl(0, 0, yaw, 0)
+        if duration is None:
+            self.sendControl(0, 0, yaw, 0)
         else:
-        	self.sendControlDuration(0, 0, yaw, 0, duration)
+            self.sendControlDuration(0, 0, yaw, 0, duration)
 
-    def turnDegree(self):
-        ### TO DO ###
-        pass
+    def turnDegree(self, direction, degree):
+        if not isinstance(direction, Direction) or not isinstance(degree, Degree):
+            return None
+
+        power = 30
+        bias = 3
+
+        yaw = self.getAngularSpeed().Yaw
+        direction = ((direction == Direction.Right) - (direction == Direction.Left))
+        degree = direction * (degree.value - bias) + yaw
+
+        power *= direction
+
+        start_time = time.time()
+        while (start_time - time.time()) < 15:
+            self.sendRequest(DataType.Attitude)
+            sleep(0.1)
+            if abs(yaw - self._data.attitude.Yaw) > 180:
+                degree -= direction * 360
+            yaw = self._data.attitude.Yaw
+            if direction > 0 and degree > yaw:
+                self.sendControl(0, 0, power, 0)
+            elif direction < 0 and degree < yaw:
+                self.sendControl(0, 0, power, 0)
+            else:
+                break
+
+        self.sendControl(0,0,0,0)
+        sleep(self._controlSleep)
 
     def rotate90(self):
         ### TO DO ###
@@ -807,9 +836,27 @@ class CoDrone:
         ### TO DO ###
         pass
 
-    def goToHeight(self,height):
-        ### TO DO ###
-        pass
+    def goToHeight(self, height):
+        power = 20
+        interval = 10   #height - 10 ~ height + 10
+
+        start_time = time.time()
+        while (start_time - time.time()) < 500:
+            self.sendRequest(DataType.Range)
+            sleep(0.1)
+
+            differ = height - self._data.range
+            if differ > interval:
+                self.sendControl(0, 0, 0, power)
+                sleep(0.1)
+            elif differ < -interval:
+                self.sendControl(0, 0, 0, -power)
+                sleep(0.1)
+            else:
+                break
+
+        self.sendControl(0, 0, 0, 0)
+        sleep(self._controlSleep)
 
     ### FLIGHT COMMANDS -----------------------END
 
@@ -858,10 +905,13 @@ class CoDrone:
         control = Control()
         control.setAll(0, 0, 0, 0)
 
-        self.transfer(header, control)
         while (time.time() - timeStart) < duration:
-            sleep(0.1)
             self.transfer(header, control)
+            sleep(0.05)
+
+        self.transfer(header, control)
+        sleep(self._controlSleep)
+
 
     def emergencyStop(self):
         # Event states

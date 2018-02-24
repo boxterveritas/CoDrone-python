@@ -1,5 +1,6 @@
 from enum import Enum
 
+
 class DeviceType(Enum):
     None_ = 0x00
     DroneMain = 0x01    # Drone control
@@ -42,7 +43,7 @@ class ModeSystem(Enum):
 
 
 class ModeVehicle(Enum):
-    #mode for CoDrone
+    #mode for CoDronee
     None_ = 0x00
     FlightGuard = 0x10
     FlightNoGuard = 0x11
@@ -189,6 +190,18 @@ class DriveEvent(Enum):
 
     EndOfType = 0x04
 
+"""
+User Only
+"""
+class Degree(Enum):
+    ANGLE_30 = 30
+    ANGLE_45 = 45
+    ANGLE_60 = 60
+    ANGLE_90 = 90
+    ANGLE_120 = 120
+    ANGLE_135 = 135
+    ANGLE_150 = 150
+    ANGLE_180 = 180
 
 class Direction(Enum):
     None_ = 0x00
@@ -202,7 +215,7 @@ class Direction(Enum):
 
     EndOfType = 0x07
 
-    #just for user
+    #User Only
     Up = 0x08
     Down = 0x09
     Forward = 0x0A

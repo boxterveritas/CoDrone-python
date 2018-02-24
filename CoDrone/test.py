@@ -1,5 +1,4 @@
 from codrone import *
-import matplotlib.pyplot as plt
 import math
 flag = 0
 battery = 0
@@ -7,8 +6,10 @@ IR = 0
 
 def basicTest(drone):
     drone.takeoff()
-    drone.hover(3)
+    drone.sendControlWhile(0,0,0,10,3)
     drone.land()
+    print("finish")
+    sleep(3)
 
 
 def colorTest(drone):
@@ -123,7 +124,7 @@ def flightTest(drone):
 
 def moveTest(drone):
     print("---- START Move Test")
-    """
+
     print("down for 2sec")
     drone.sendControl(0, 0, 0, -30)
     sleep(2)
@@ -139,7 +140,7 @@ def moveTest(drone):
 
     print("hovering for 2sec")
     sleep(2)
-    """
+
     print("up for 2sec")
     drone.setThrottle(50)
     drone.move()
@@ -183,6 +184,7 @@ def goTest(drone):
     drone.go(Direction.Down, 2, 50)
 
     print(drone.getRoll(), drone.getPitch(), drone.getYaw(), drone.getThrottle())
+
     drone.setRoll(50)
     drone.setPitch(50)
     drone.setYaw(50)
@@ -190,17 +192,6 @@ def goTest(drone):
     print(drone.getRoll(), drone.getPitch(), drone.getYaw(), drone.getThrottle())
 
     print("---- DONE Go Test")
-
-def combineTest(drone):
-    drone.takeoff()
-    height = drone.getHeight()
-    while(height < 1300):
-        drone.go(Direction.Up)
-        height = drone.getHeight()
-    while(height > 500):
-        drone.go(Direction.Down)
-        height = drone.getHeight()
-    drone.land()
 
 def onTest(drone):
     def blueArm():
@@ -240,10 +231,10 @@ def onTest(drone):
     drone.onLowBattery(RedBlinkArm)
 
 """
-for (float z = -1.0; z <= 1.0; z += intervalZ) {
-		for (float d = 0; d <= M_PI2; d += intervalD) {
-			float y = sqrt(1.0 - pow(z, 2)) * cos(d);
-			float x = sqrt(1.0 - pow(z, 2)) * sin(d);
+    Fly in a circle: 
+    Just fly in a circle that will fit in our room. 
+    Okay to use yaw + roll. 
+    Just needs to see it ends where it started.
 """
 def testCircle(drone):
     x_list = []
@@ -253,7 +244,7 @@ def testCircle(drone):
     # Find the coordinates of the points that make up the circle
     interval = (math.pi * 2) / num
     for d in [interval * i for i in range(num)]:
-        x_list.append(int((math.cos(d)*100/2-100)))
+        x_list.append(int((math.cos(d)*100/2 - 100)))
         y_list.append(int(math.sin(d)*100/2))
 
     # Get distance between two points.
@@ -264,11 +255,13 @@ def testCircle(drone):
     y_list[num-1] = -y_list[num-1]
 
     drone.takeoff()
-
+    print(x_list, y_list)
     for i in range(num):
-        drone.move(0.5,y_list[i],x_list[i],0,0)
-        t = drone.getGyroAngles()
-        print(t)
+        drone.sendControl(y_list[i], x_list[i], 0, 0)
+        sleep(0.3)
+
+        #t = drone.getGyroAngles()
+        #print(t)
     drone.land()
 
 
@@ -280,93 +273,119 @@ def testGoL(drone):
 
     drone.land()
     sleep(3)
-
+"""
+    L shape: take off, 
+    fly forward for 3 seconds, 
+    turn, 
+    fly right for 3 seconds
+"""
 def testL(drone):
     drone.takeoff()
 
-    drone.move(1, 0,-50,0,0)
-    drone.move(1, 50,0,0,0)
+    drone.go(Direction.Forward, 3)
+    drone.turnDegree(Direction.Right, Degree.ANGLE_90)
+    drone.go(Direction.Forward, 1)
 
     drone.land()
     sleep(3)
 
+"""
+    Fly in a square: 
+    Fly in a square large enough for it to fit in our room
+"""
 def testSquare(drone):
     drone.takeoff()
 
-    drone.move(1, 50,0,0,0)
-    drone.move(1, 0,50,0,0)
-    drone.move(1, -50,0,0,0)
-    drone.move(1, 0,-50,0,0)
+    drone.go(Direction.Right, 1)
+    drone.go(Direction.Forward, 1)
+    drone.go(Direction.Left, 1)
+    drone.go(Direction.Backward, 1)
 
     drone.land()
     sleep(3)
 
+"""
+    3-part zig zag: take off,
+    45 degrees right for 2 seconds,
+    90 degrees left 2 seconds,
+    90 degrees right for 2 seconds
+"""
 def testZigZag(drone):
     drone.takeoff()
 
-    drone.move(1, -50,50,0,0)
-    drone.move(1, 50,50,0,0)
-    drone.move(1, -50,50,0,0)
-    drone.move(1, 50,50,0,0)
+    drone.turnDegree(Direction.Right, Degree.ANGLE_45)
+    drone.go(Direction.Forward, 2, 30)
+
+    drone.turnDegree(Direction.Left, Degree.ANGLE_90)
+    drone.go(Direction.Forward, 2, 30)
+
+    drone.turnDegree(Direction.Right, Degree.ANGLE_90)
+    drone.go(Direction.Forward, 2, 30)
 
     drone.land()
     sleep(3)
 
+"""
+    goToHeight() test: 
+    Fly forward for 2 seconds, 
+    go to 500 mm, 
+    then fly forward for 2 seconds, 
+    go to 1000 mm
+"""
 def testHeight(drone):
     drone.takeoff()
 
-    if(drone.getHeight() < 1500):
-        drone.move(0.5, 0,0,0,50)
+    print(500)
+    drone.go(Direction.Forward, 2, 20)
+    drone.goToHeight(500)
+    print(1000)
+    drone.go(Direction.Forward, 2, 20)
+    drone.goToHeight(1000)
 
-    # go forward
-    drone.move(1, 0,50,0,0)
     drone.land()
     sleep(3)
+
 
 def testTurn(drone):
     drone.takeoff()
-    #1,15 = 30?
-    #1,20 = 45?
-    #1,30 = 60degree
-    #1,50 = 90degree
-    #1,80 = 120degree
-    #1,90 = 135?
-    #1,100 = 150?
-    #2,50 = 180?
-    45, 60, 90, 120, 135, 150, 180
-    for i in range(3):
-        drone.turn(Direction.Right,1,20)
-        drone.turn(Direction.Right,1,20)
-        drone.turn(Direction.Right,1,20)
-        drone.hover(3)
+    print("45")
+    drone.turnDegree(Direction.Left, 45)
+    drone.turnDegree(Direction.Right, 45)
+    sleep(3)
+    print("90")
+    drone.turnDegree(Direction.Left, 90)
+    drone.turnDegree(Direction.Right, 90)
+    sleep(3)
+    print("180")
+    drone.turnDegree(Direction.Left, 180)
+    drone.turnDegree(Direction.Right, 180)
 
     drone.land()
-    sleep(3)
 
 def testDrone():
     drone = CoDrone()
     while not drone.isConnected():
-        drone.connect("COM14", "PETRONE 6187")
+        drone.connect("COM9", "PETRONE 2455")
         sleep(3)
         print("?")
-    print(drone.getBatteryPercentage())
+#    print(drone.getBatteryPercentage())
 
-    basicTest(drone)
-    basicTest(drone)
-    basicTest(drone)
+
+    #basicTest(drone)
     #onTest(drone)
     #colorTest(drone)
     testCircle(drone)
-    testL(drone)
-    testSquare(drone)
+    #testL(drone)
+    #testSquare(drone)
     #testHeight(drone)
-    testTurn(drone)
-    testZigZag(drone)
+    #testTurn(drone)
+    #testZigZag(drone)
     #flightTest(drone)
     #colorTest(drone)
     #moveTest(drone)
     #goTest(drone)
-
+    drone.sendLinkDisconnect()
+    sleep(3)
     drone.close()
 
 def testCoDrone():
@@ -377,10 +396,10 @@ def testCoDrone():
         drone.connect()
         sleep(3)
 
+    drone.sendTakeOff()
+    drone.sendControlWhile(0,0,0,0,3)
+    drone.sendLanding()
+
+
 testDrone()
-
-
-drone = CoDrone()
-drone.connect()
-
 
