@@ -1,5 +1,6 @@
 from operator import eq
 from queue import Queue
+from threading import Lock
 from threading import Thread
 from time import sleep
 
@@ -7,9 +8,6 @@ import colorama
 import serial
 from colorama import Fore, Back, Style
 from serial.tools.list_ports import comports
-from system import *
-from protocol import *
-from crc import *
 from receiver import *
 from storage import *
 
@@ -63,7 +61,7 @@ class Timer:
 class Data(EventStatesFunc):
     def __init__(self):
         # criterion for low battery
-        self._LowBatteryPercent = 30
+        self._LowBatteryPercent = 50
 
         super().__init__()
         self.timer = Timer()
@@ -73,11 +71,11 @@ class Data(EventStatesFunc):
         self.batteryPercent = 0
         self.batteryVoltage = 0
         self.gyro = Angle(0,0,0)
-        self.imageFlow = 0
+        self.imageFlow = Position(0,0)
         self.pressure = 0
         self.reversed = 0
         self.temperature = 0
-        self.trim = 0
+        self.trim = Flight(0,0,0,0)
         self.range = 0
         self.state = 0
 
@@ -118,7 +116,6 @@ class Data(EventStatesFunc):
         if self.lowBattery is not None and self.batteryPercent < self._LowBatteryPercent:
             if start_time - self.timer.lowBattery[1] > self.timer.lowBattery[0]:
                 self.lowBattery()
-                print(start_time,self.timer.lowBattery[1])
                 self.timer.lowBattery[1] = start_time
         if self.ready is not None and self.state == ModeFlight.Ready:
             if start_time - self.timer.ready[1] > self.timer.ready[0]:
@@ -170,6 +167,7 @@ class CoDrone:
         self._index = 0
 
         self._thread = None
+        self._lock = Lock()
         self._flagThreadRun = False
 
         self._receiver = Receiver()
@@ -216,13 +214,14 @@ class CoDrone:
     def __del__(self):
         self.close()
 
-    def _receiving(self):
+    def _receiving(self, lock):
         start_timer = time.time()
         while self._flagThreadRun:
             if (time.time() - start_timer) > 2:
                 start_timer = time.time()
-                #self.sendRequest(DataType.State)
-            self._bufferQueue.put(self._serialport.read())
+                self.sendRequest(DataType.State)
+            with lock:
+                self._bufferQueue.put(self._serialport.read())
 
             # auto-update when background check for receive data is on
             if self._flagCheckBackground:
@@ -261,7 +260,7 @@ class CoDrone:
 
         if (self.isOpen()):
             self._flagThreadRun = True
-            self._thread = Thread(target=self._receiving, args=(), daemon=True).start()
+            self._thread = Thread(target=self._receiving, args=(self._lock,), daemon=True).start()
 
             # print log
             self._printLog("Connected.({0})".format(portName))
@@ -312,7 +311,9 @@ class CoDrone:
             return
 
         dataArray = self.makeTransferDataArray(header, data)
-        self._serialport.write(dataArray)
+        with self._lock:
+            self._serialport.write(dataArray)
+
         # print transfer data
         self._printTransferData(dataArray)
 
@@ -894,6 +895,7 @@ class CoDrone:
         data.option = FlightEvent.Landing.value
 
         self.transfer(header, data)
+        sleep(self._controlSleep)
 
     def hover(self, duration = 0):
         timeStart = time.time()
@@ -907,7 +909,7 @@ class CoDrone:
 
         while (time.time() - timeStart) < duration:
             self.transfer(header, control)
-            sleep(0.05)
+            sleep(0.1)
 
         self.transfer(header, control)
         sleep(self._controlSleep)
