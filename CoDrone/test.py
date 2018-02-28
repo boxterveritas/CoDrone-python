@@ -1,5 +1,6 @@
 from codrone import *
 import math
+
 flag = 0
 battery = 0
 IR = 0
@@ -243,8 +244,9 @@ def testGetHeight(drone):
     drone.go(Direction.Forward, 2)
     sleep(2)
     print("table height :" , drone.getHeight())
-    sleep(1)
+    sleep(2)
     drone.land()
+    sleep(3)
 
 """
 Spiral test:
@@ -329,7 +331,7 @@ def testCircle(drone):
             degree += 360
         yaw = drone._data.attitude.Yaw
         if degree < yaw:
-            drone.sendControl(5+int(abs(yaw - degree)/100)*5, 0, power, 0)
+            drone.sendControl(10+int(abs(yaw - degree)/100), 0, power, 0)
         else:
             break
     drone.hover(1)
@@ -345,9 +347,9 @@ def testCircle(drone):
 def testL(drone):
     drone.takeoff()
 
-    drone.go(Direction.Forward, 3)
+    drone.go(Direction.Forward, 2,30)
     drone.turnDegree(Direction.Right, Degree.ANGLE_90)
-    drone.go(Direction.Forward, 1)
+    drone.go(Direction.Forward, 1,30)
 
     drone.land()
     sleep(3)
@@ -359,10 +361,10 @@ def testL(drone):
 def testSquare(drone):
     drone.takeoff()
 
-    drone.go(Direction.Right, 1)
-    drone.go(Direction.Forward, 1)
-    drone.go(Direction.Left, 1)
-    drone.go(Direction.Backward, 1)
+    drone.go(Direction.Right, 1,40)
+    drone.go(Direction.Forward, 1,40)
+    drone.go(Direction.Left, 1,40)
+    drone.go(Direction.Backward, 1,40)
 
     drone.land()
     sleep(3)
@@ -376,14 +378,11 @@ def testSquare(drone):
 def testZigZag(drone):
     drone.takeoff()
 
-    drone.turnDegree(Direction.Right, Degree.ANGLE_45)
-    drone.go(Direction.Forward, 2, 30)
-
-    drone.turnDegree(Direction.Left, Degree.ANGLE_90)
-    drone.go(Direction.Forward, 2, 30)
-
-    drone.turnDegree(Direction.Right, Degree.ANGLE_90)
-    drone.go(Direction.Forward, 2, 30)
+    sleep(1)
+    drone.move(1, 30,30,0,0)
+    drone.move(1, -30,30,0,0)
+    drone.move(1, 30,30,0,0)
+    drone.move(1, -30,30,0,0)
 
     drone.land()
     sleep(3)
@@ -399,41 +398,44 @@ def testHeight(drone):
     drone.takeoff()
 
     print(500)
-    drone.go(Direction.Forward, 2, 20)
+    drone.go(Direction.Forward, 1, 50)
     drone.goToHeight(500)
+    sleep(1)
     print(1000)
-    drone.go(Direction.Forward, 2, 20)
+    drone.go(Direction.Forward, 1, 50)
     drone.goToHeight(1000)
-
+    sleep(1)
     drone.land()
     sleep(3)
 
 def testTurn(drone):
     drone.takeoff()
-    print("45")
-    drone.turnDegree(Direction.Left, 45)
-    drone.turnDegree(Direction.Right, 45)
-    sleep(3)
-    print("90")
-    drone.turnDegree(Direction.Left, 90)
-    drone.turnDegree(Direction.Right, 90)
-    sleep(3)
-    print("180")
-    drone.turnDegree(Direction.Left, 180)
-    drone.turnDegree(Direction.Right, 180)
+    drone.turnDegree(Direction.Right, Degree.ANGLE_30)
+    drone.go(Direction.Forward, 1)
+    drone.turnDegree(Direction.Left, Degree.ANGLE_120)
+    drone.go(Direction.Forward, 1)
+    drone.turnDegree(Direction.Left, Degree.ANGLE_120)
+    drone.go(Direction.Forward, 1)
 
+    sleep(1)
     drone.land()
+    sleep(3)
 
 def testDrone():
     drone = CoDrone()
     while not drone.isConnected():
-        drone.connect("COM14", "PETRONE 2455")
+        drone.connect("COM12", "PETRONE 7463")
         sleep(3)
         print("?")
 
-    #testSpiral(drone)
-    testCircle(drone)
+    #testZigZag(drone)
+    #testL(drone)
+    #testCircle(drone)
+    #testSquare(drone)
+    #testHeight(drone)
+    #testTurn(drone)
     #testGetHeight(drone)
+    #testSpiral(drone)
     #testBatteryLow(drone)
     drone.sendLinkDisconnect()
     sleep(3)

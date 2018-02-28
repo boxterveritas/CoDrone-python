@@ -39,7 +39,7 @@ class Timer:
     def __init__(self):
         # [ time interval, variable to save start time ]
         self.address = [0, 0]
-        self.attitude = [0, 0]
+        self.attitude = [0.1, 0]
         self.battery = [5, 0]
         self.imu = [0, 0]
         self.pressure = [3, 0]
@@ -200,8 +200,7 @@ class CoDrone:
 
         # Flight Command
         ## TEST
-        self._controlSleep = 2
-
+        self._controlSleep = 1
 
         # LED
         self._LEDColor = [255, 0, 0]
@@ -217,9 +216,6 @@ class CoDrone:
     def _receiving(self, lock):
         start_timer = time.time()
         while self._flagThreadRun:
-            if (time.time() - start_timer) > 2:
-                start_timer = time.time()
-                self.sendRequest(DataType.State)
             with lock:
                 self._bufferQueue.put(self._serialport.read())
 
@@ -258,7 +254,7 @@ class CoDrone:
             bytesize=serial.EIGHTBITS,
             timeout=0)
 
-        if (self.isOpen()):
+        if self.isOpen():
             self._flagThreadRun = True
             self._thread = Thread(target=self._receiving, args=(self._lock,), daemon=True).start()
 
@@ -309,14 +305,12 @@ class CoDrone:
     def transfer(self, header, data):
         if not self.isOpen():
             return
-
         dataArray = self.makeTransferDataArray(header, data)
         with self._lock:
             self._serialport.write(dataArray)
 
         # print transfer data
         self._printTransferData(dataArray)
-
         return dataArray
 
     def check(self):
@@ -603,10 +597,10 @@ class CoDrone:
 
         ## TO DO
         ## How to alert low battery
-        if self.isConnected():
-            battery =  self.getBatteryPercentage()
+        if self._flagConnected:
+            battery = self.getBatteryPercentage()
             print("Drone battery : [",battery,"]")
-            if self._flagConnected and battery < self._lowBatteryPercent:
+            if battery < self._lowBatteryPercent:
                 print("Low Battery!!")
 
         return self._flagConnected
@@ -684,12 +678,13 @@ class CoDrone:
         header.length = Control.getSize()
 
         control = Control()
-        control.setAll(roll,pitch,yaw,throttle)
+        control.setAll(roll, pitch, yaw, throttle)
+
         self.transfer(header, control)
 
     def sendControlDuration(self, roll, pitch, yaw, throttle, duration):
         if(duration == 0):
-            return self.sendControl(roll,pitch, yaw,throttle)
+            return self.sendControl(roll, pitch, yaw, throttle)
 
         header = Header()
 
@@ -706,8 +701,7 @@ class CoDrone:
             self.transfer(header, control)
             sleep(0.02)
 
-        self.sendControl(0,0,0,0)
-        sleep(self._controlSleep)
+        self.hover(self._controlSleep)
 
     ### Control End ---------
 
@@ -799,28 +793,27 @@ class CoDrone:
         if not isinstance(direction, Direction) or not isinstance(degree, Degree):
             return None
 
-        power = 30
+        power = 20
         bias = 3
 
-        yaw = self.getAngularSpeed().Yaw
-        direction = ((direction == Direction.Right) - (direction == Direction.Left))
-        degree = direction * (degree.value - bias) + yaw
-
-        power *= direction
+        yawPast = self.getAngularSpeed().Yaw
+        direction = ((direction == Direction.Right) - (direction == Direction.Left))    # right = 1 / left = -1
+        degreeGoal = direction * (degree.value - bias) + yawPast
 
         start_time = time.time()
-        while (start_time - time.time()) < 15:
-            self.sendRequest(DataType.Attitude)
-            sleep(0.1)
-            if abs(yaw - self._data.attitude.Yaw) > 180:
-                degree -= direction * 360
-            yaw = self._data.attitude.Yaw
-            if direction > 0 and degree > yaw:
+        while (time.time() - start_time) < degree.value/3:
+            yaw = self._data.attitude.Yaw   # Receive attitude data every time you send a flight command
+
+            if abs(yawPast - yaw) > 180:   # When the sign changes
+                degreeGoal -= direction * 360
+            yawPast = yaw
+            if direction > 0 and degreeGoal > yaw:    # Clockwise
                 self.sendControl(0, 0, power, 0)
-            elif direction < 0 and degree < yaw:
-                self.sendControl(0, 0, power, 0)
+            elif direction < 0 and degreeGoal < yaw:   # Counterclockwise
+                self.sendControl(0, 0, -power, 0)
             else:
                 break
+            sleep(0.05)
 
         self.sendControl(0,0,0,0)
         sleep(self._controlSleep)
@@ -842,11 +835,10 @@ class CoDrone:
         interval = 10   #height - 10 ~ height + 10
 
         start_time = time.time()
-        while (start_time - time.time()) < 500:
-            self.sendRequest(DataType.Range)
-            sleep(0.1)
+        while time.time() - start_time < 100:
+            state = self.getHeight()
 
-            differ = height - self._data.range
+            differ = height - state
             if differ > interval:
                 self.sendControl(0, 0, 0, power)
                 sleep(0.1)
@@ -867,17 +859,13 @@ class CoDrone:
     def takeoff(self):
         # Event States
         self._data.takeoffFuncFlag = 1
-
         header = Header()
 
         header.dataType = DataType.Command
         header.length = Command.getSize()
-
         data = Command()
-
         data.commandType = CommandType.FlightEvent
         data.option = FlightEvent.TakeOff.value
-
         self.transfer(header, data)
         sleep(3)
 
@@ -941,12 +929,11 @@ class CoDrone:
     def getDataWhile(self, dataType):
         flag = self._storageCount.d[dataType]
         self.sendRequest(dataType)
-        count = 0
+        start_time = time.time()
         # Break the loop if request time is over 1sec
-        while (self._storageCount.d[dataType] == flag) and (count < 100):
+        while (self._storageCount.d[dataType] == flag) and (time.time() - start_time < 0.5):
             sleep(0.01)
-            count += 1
-        return (self._storageCount.d[dataType] > flag)
+        return self._storageCount.d[dataType] > flag
 
     def getHeight(self):
         self.getDataWhile(DataType.Range)
@@ -1418,7 +1405,7 @@ class CoDrone:
         timeSec = timeMs / 1000
         timeStart = time.time()
 
-        while ((time.time() - timeStart) < timeSec):
+        while (time.time() - timeStart) < timeSec:
             self.sendControl(roll, pitch, yaw, throttle)
             sleep(0.02)
 
@@ -1441,7 +1428,7 @@ class CoDrone:
         timeSec = timeMs / 1000
         timeStart = time.time()
 
-        while ((time.time() - timeStart) < timeSec):
+        while (time.time() - timeStart) < timeSec:
             self.sendControlDrive(wheel, accel)
             sleep(0.02)
 
