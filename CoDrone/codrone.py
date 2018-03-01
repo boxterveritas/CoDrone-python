@@ -214,7 +214,6 @@ class CoDrone:
         self.close()
 
     def _receiving(self, lock):
-        start_timer = time.time()
         while self._flagThreadRun:
             with lock:
                 self._bufferQueue.put(self._serialport.read())
@@ -260,12 +259,10 @@ class CoDrone:
 
             # print log
             self._printLog("Connected.({0})".format(portName))
-
             return True
         else:
             # print error message
             self._printError("Could not connect to PETRONE LINK.")
-
             return False
 
     def close(self):
@@ -300,6 +297,25 @@ class CoDrone:
         dataArray.extend(data.toArray())
         dataArray.extend(pack('H', crc16))
 
+        return dataArray
+
+    def sendRequestState(self):
+        if not self.isOpen():
+            return
+
+        header = Header()
+
+        header.dataType = DataType.Request
+        header.length = Request.getSize()
+
+        data = Request()
+        data.dataType = DataType.State
+
+        dataArray = self.makeTransferDataArray(header, data)
+        self._serialport.write(dataArray)
+
+        # print transfer data
+        self._printTransferData(dataArray)
         return dataArray
 
     def transfer(self, header, data):
@@ -508,7 +524,6 @@ class CoDrone:
         if not self.isOpen():
             # print error
             self._printError("Could not connect to PETRONE LINK.")
-
             return False
 
         # system reset
@@ -599,6 +614,7 @@ class CoDrone:
         ## How to alert low battery
         if self._flagConnected:
             battery = self.getBatteryPercentage()
+            if battery == 0: battery = self.getBatteryPercentage()
             print("Drone battery : [",battery,"]")
             if battery < self._lowBatteryPercent:
                 print("Low Battery!!")
@@ -651,7 +667,6 @@ class CoDrone:
         return self.transfer(header, data)
 
     def sendRequest(self, dataType):
-
         if (not isinstance(dataType, DataType)):
             return None
 
@@ -663,7 +678,6 @@ class CoDrone:
         data = Request()
 
         data.dataType = dataType
-
         return self.transfer(header, data)
 
     # Common End
@@ -831,8 +845,8 @@ class CoDrone:
         pass
 
     def goToHeight(self, height):
-        power = 20
-        interval = 10   #height - 10 ~ height + 10
+        power = 30
+        interval = 20   #height - 10 ~ height + 10
 
         start_time = time.time()
         while time.time() - start_time < 100:
@@ -885,7 +899,7 @@ class CoDrone:
         self.transfer(header, data)
         sleep(self._controlSleep)
 
-    def hover(self, duration = 0):
+    def hover(self, duration=0):
         timeStart = time.time()
         header = Header()
 
@@ -976,7 +990,7 @@ class CoDrone:
 
     def getBatteryVoltage(self):
         timeStart = time.time()
-        if(self._timer.battery[0] < timeStart - self._timer.battery[1]):
+        if self._timer.battery[0] < timeStart - self._timer.battery[1]:
             self.getDataWhile(DataType.Battery)
             self._timer.battery[1] = timeStart
         return self._data.batteryVoltage

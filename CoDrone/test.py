@@ -237,17 +237,17 @@ read the height from the table.
 """
 def testGetHeight(drone):
     drone.takeoff()
-    drone.hover(2)
-    print("ground height :" , drone.getHeight())
+    drone.go(Direction.Up,3,30)
     sleep(1)
-    drone.go(Direction.Up, 1)
-    drone.go(Direction.Forward, 2)
+    print("ground height :" , drone.getHeight())
+    drone.go(Direction.Forward, 1)
     sleep(2)
     print("table height :" , drone.getHeight())
-    sleep(2)
+    print("table height :", drone.getHeight())
     drone.land()
-    sleep(3)
-
+    for i in range(5):
+        print("table height :", drone.getHeight())
+    sleep(1)
 """
 Spiral test:
 Do an outward spiral, then land
@@ -266,15 +266,20 @@ Flash the eyes red when the drone is below 50% battery
 """
 def testBatteryLow(drone):
     def RedFlashEyes():
-        drone.setEyeRGB(255,0,0)
         drone.setEyeMode(Mode.Blinking)
+        drone.setEyeRGB(255,0,0)
         print("redEye, low Battery")
+        sleep(1)
 
     drone.onLowBattery(RedFlashEyes)
 
     # check
     drone.takeoff()
-    drone.sendControlDuration(10, 0, -50, 0, 4)
+    for i in range(5):
+        drone.sendControlDuration(30, 0, 0, 0, 2)
+        drone.sendControlDuration(-30, 0, 0, 0, 2)
+
+    print(drone.getBatteryPercentage())
     sleep(1)
     drone.land()
 
@@ -349,7 +354,7 @@ def testL(drone):
 
     drone.go(Direction.Forward, 2,30)
     drone.turnDegree(Direction.Right, Degree.ANGLE_90)
-    drone.go(Direction.Forward, 1,30)
+    drone.go(Direction.Forward, 2,30)
 
     drone.land()
     sleep(3)
@@ -361,10 +366,10 @@ def testL(drone):
 def testSquare(drone):
     drone.takeoff()
 
-    drone.go(Direction.Right, 1,40)
-    drone.go(Direction.Forward, 1,40)
-    drone.go(Direction.Left, 1,40)
-    drone.go(Direction.Backward, 1,40)
+    drone.go(Direction.Right, 2,30)
+    drone.go(Direction.Forward, 2,30)
+    drone.go(Direction.Left, 2,30)
+    drone.go(Direction.Backward, 2,30)
 
     drone.land()
     sleep(3)
@@ -404,7 +409,7 @@ def testHeight(drone):
     print(1000)
     drone.go(Direction.Forward, 1, 50)
     drone.goToHeight(1000)
-    sleep(1)
+    sleep(5)
     drone.land()
     sleep(3)
 
@@ -424,10 +429,9 @@ def testTurn(drone):
 def testDrone():
     drone = CoDrone()
     while not drone.isConnected():
-        drone.connect("COM12", "PETRONE 7463")
+        drone.connect("COM4", "PETRONE 2455")
         sleep(3)
         print("?")
-
     #testZigZag(drone)
     #testL(drone)
     #testCircle(drone)
@@ -436,7 +440,7 @@ def testDrone():
     #testTurn(drone)
     #testGetHeight(drone)
     #testSpiral(drone)
-    #testBatteryLow(drone)
+    testBatteryLow(drone)
     drone.sendLinkDisconnect()
     sleep(3)
     drone.close()
