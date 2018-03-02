@@ -237,16 +237,16 @@ read the height from the table.
 """
 def testGetHeight(drone):
     drone.takeoff()
-    drone.go(Direction.Up,3,30)
-    sleep(1)
+    drone.goToHeight(1200)
     print("ground height :" , drone.getHeight())
     drone.go(Direction.Forward, 1)
     sleep(2)
     print("table height :" , drone.getHeight())
     print("table height :", drone.getHeight())
     drone.land()
-    for i in range(5):
-        print("table height :", drone.getHeight())
+    height = drone.getHeight()
+    while(height < 10):
+        height = drone.getHeight()
     sleep(1)
 """
 Spiral test:
@@ -275,9 +275,8 @@ def testBatteryLow(drone):
 
     # check
     drone.takeoff()
-    for i in range(5):
-        drone.sendControlDuration(30, 0, 0, 0, 2)
-        drone.sendControlDuration(-30, 0, 0, 0, 2)
+    drone.go(Direction.Left,1)
+    drone.go(Direction.Right,1)
 
     print(drone.getBatteryPercentage())
     sleep(1)
@@ -416,6 +415,7 @@ def testHeight(drone):
 def testTurn(drone):
     drone.takeoff()
     drone.turnDegree(Direction.Right, Degree.ANGLE_30)
+    drone.hover(3)
     drone.go(Direction.Forward, 1)
     drone.turnDegree(Direction.Left, Degree.ANGLE_120)
     drone.go(Direction.Forward, 1)
@@ -440,7 +440,8 @@ def testDrone():
     #testTurn(drone)
     #testGetHeight(drone)
     #testSpiral(drone)
-    testBatteryLow(drone)
+    testColor(drone)
+    #testBatteryLow(drone)
     drone.sendLinkDisconnect()
     sleep(3)
     drone.close()
@@ -457,6 +458,4 @@ def testCoDrone():
     drone.sendControlWhile(0,0,0,0,3)
     drone.sendLanding()
 
-
 testDrone()
-

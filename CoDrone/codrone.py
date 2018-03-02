@@ -1,7 +1,8 @@
 from operator import eq
 from queue import Queue
-from threading import Lock
+from threading import RLock
 from threading import Thread
+from threading import Timer as threadTimer
 from time import sleep
 
 import colorama
@@ -10,6 +11,7 @@ from colorama import Fore, Back, Style
 from serial.tools.list_ports import comports
 from receiver import *
 from storage import *
+
 
 def convertByteArrayToString(dataArray):
     if dataArray == None:
@@ -22,6 +24,7 @@ def convertByteArrayToString(dataArray):
             string += "{0:02X} ".format(data)
 
     return string
+
 
 class EventStatesFunc:
     def __init__(self):
@@ -66,16 +69,16 @@ class Data(EventStatesFunc):
         super().__init__()
         self.timer = Timer()
         self.address = 0
-        self.attitude = Angle(0,0,0)
-        self.accel = Axis(0,0,0)
+        self.attitude = Angle(0, 0, 0)
+        self.accel = Axis(0, 0, 0)
         self.batteryPercent = 0
         self.batteryVoltage = 0
-        self.gyro = Angle(0,0,0)
-        self.imageFlow = Position(0,0)
+        self.gyro = Angle(0, 0, 0)
+        self.imageFlow = Position(0, 0)
         self.pressure = 0
         self.reversed = 0
         self.temperature = 0
-        self.trim = Flight(0,0,0,0)
+        self.trim = Flight(0, 0, 0, 0)
         self.range = 0
         self.state = 0
 
@@ -85,23 +88,30 @@ class Data(EventStatesFunc):
 
     def eventUpdateAddress(self, data):
         self.address = data.address
+
     def eventUpdateAttitude(self, data):
         self.attitude = Angle(data.roll, data.pitch, data.yaw)
+
     def eventUpdateBattery(self, data):
         self.batteryPercent = data.batteryPercent
         self.batteryVoltage = data.voltage
+
     def eventUpdateImu(self, data):
         self.accel = Axis(data.accelX, data.accelY, data.accelZ)
         self.gyro = Angle(data.gyroRoll, data.gyroPitch, data.gyroYaw)
+
     def eventUpdatePressure(self, data):
         self.pressure = data.pressure
         self.temperature = data.temperature
+
     def eventUpdateRange(self, data):
         self.range = data.bottom
+
     def eventUpdateState_(self, data):
         self.reversed = data.sensorOrientation
         self.batteryPercent = data.battery
         self.state = data.modeFlight
+
     def eventUpdateState(self, data):
         self.reversed = data.sensorOrientation
         self.batteryPercent = data.battery
@@ -148,11 +158,12 @@ class Data(EventStatesFunc):
             self.emergencyStop()
             self.stopFuncFlag = 0
             return
+
     def eventUpdateTrim(self, data):
         self.trim = Flight(data.roll, data.pitch, data.yaw, data.throttle)
+
     def eventUpdateImageFlow(self, data):
         self.imageFlow = Position(data.positionX, data.positionY)
-
 
 
 class CoDrone:
@@ -167,7 +178,9 @@ class CoDrone:
         self._index = 0
 
         self._thread = None
-        self._lock = Lock()
+        self._lock = RLock()
+        self._lockState = None
+        self._lockReciving = None
         self._flagThreadRun = False
 
         self._receiver = Receiver()
@@ -213,9 +226,10 @@ class CoDrone:
     def __del__(self):
         self.close()
 
-    def _receiving(self, lock):
+    def _receiving(self, lock, lockState):
+        self._lockReciving = RLock()
         while self._flagThreadRun:
-            with lock:
+            with lock and lockState and self._lockReciving:
                 self._bufferQueue.put(self._serialport.read())
 
             # auto-update when background check for receive data is on
@@ -223,6 +237,22 @@ class CoDrone:
                 while self.check() != DataType.None_:
                     pass
                     # sleep(0.001)
+
+    # Decorator
+    def lockState(func):
+        def wrapper(self, *args, **kwargs):
+            with self._lockState:
+                return func(self, *args, **kwargs)
+        return wrapper
+
+    def _sendRequestState(self, lock):
+        self._lockState = RLock()
+        while self._flagThreadRun:
+            if self._flagConnected:
+                with lock and self._lockState:
+                    self.sendRequest(DataType.State)
+                    sleep(0.01)
+            sleep(3)
 
     def isOpen(self):
         if self._serialport is not None:
@@ -236,7 +266,7 @@ class CoDrone:
         else:
             return self._flagConnected
 
-    def open(self, portName= "None"):
+    def open(self, portName="None"):
         if eq(portName, "None"):
             nodes = comports()
             size = len(nodes)
@@ -255,7 +285,8 @@ class CoDrone:
 
         if self.isOpen():
             self._flagThreadRun = True
-            self._thread = Thread(target=self._receiving, args=(self._lock,), daemon=True).start()
+            self._threadSendState = Thread(target=self._sendRequestState, args=(self._lock,), daemon=True).start()
+            self._thread = Thread(target=self._receiving, args=(self._lock, self._lockState,), daemon=True).start()
 
             # print log
             self._printLog("Connected.({0})".format(portName))
@@ -299,30 +330,11 @@ class CoDrone:
 
         return dataArray
 
-    def sendRequestState(self):
-        if not self.isOpen():
-            return
-
-        header = Header()
-
-        header.dataType = DataType.Request
-        header.length = Request.getSize()
-
-        data = Request()
-        data.dataType = DataType.State
-
-        dataArray = self.makeTransferDataArray(header, data)
-        self._serialport.write(dataArray)
-
-        # print transfer data
-        self._printTransferData(dataArray)
-        return dataArray
-
     def transfer(self, header, data):
         if not self.isOpen():
             return
         dataArray = self.makeTransferDataArray(header, data)
-        with self._lock:
+        with self._lockReciving and self._lock and self._lockState:
             self._serialport.write(dataArray)
 
         # print transfer data
@@ -424,7 +436,8 @@ class CoDrone:
             self._eventLinkEventAddress(self._storage.d[DataType.LinkEventAddress])
 
         # process LinkDiscoveredDevice separately(add list of searched device)
-        if (header.dataType == DataType.LinkDiscoveredDevice) and (self._storage.d[DataType.LinkDiscoveredDevice] is not None):
+        if (header.dataType == DataType.LinkDiscoveredDevice) and (
+                self._storage.d[DataType.LinkDiscoveredDevice] is not None):
             self._eventLinkDiscoveredDevice(self._storage.d[DataType.LinkDiscoveredDevice])
 
         # complete data process
@@ -439,7 +452,7 @@ class CoDrone:
 
     def _runEventHandler(self, dataType):
         if (isinstance(dataType, DataType)) and (self._eventHandler.d[dataType] is not None) and (
-                    self._storage.d[dataType] is not None):
+                self._storage.d[dataType] is not None):
             return self._eventHandler.d[dataType](self._storage.d[dataType])
         else:
             return None
@@ -510,7 +523,6 @@ class CoDrone:
         self._printLog(
             "LinkDiscoveredDevice / {0} / {1} / {2} / {3}".format(data.index, convertByteArrayToString(data.address),
                                                                   data.name, data.rssi))
-
 
     def connect(self, portName="None", deviceName="None", flagSystemReset=False):
 
@@ -615,7 +627,7 @@ class CoDrone:
         if self._flagConnected:
             battery = self.getBatteryPercentage()
             if battery == 0: battery = self.getBatteryPercentage()
-            print("Drone battery : [",battery,"]")
+            print("Drone battery : [", battery, "]")
             if battery < self._lowBatteryPercent:
                 print("Low Battery!!")
 
@@ -646,10 +658,7 @@ class CoDrone:
         if self._flagShowReceiveData:
             print("")
 
-
     # BaseFunctions End
-
-
 
     # Common Start
 
@@ -682,9 +691,8 @@ class CoDrone:
 
     # Common End
 
-
-
     ### Control ------------
+
     def sendControl(self, roll, pitch, yaw, throttle):
         header = Header()
 
@@ -696,8 +704,9 @@ class CoDrone:
 
         self.transfer(header, control)
 
+    @lockState
     def sendControlDuration(self, roll, pitch, yaw, throttle, duration):
-        if(duration == 0):
+        if (duration == 0):
             return self.sendControl(roll, pitch, yaw, throttle)
 
         header = Header()
@@ -718,7 +727,6 @@ class CoDrone:
         self.hover(self._controlSleep)
 
     ### Control End ---------
-
 
     ### FLIGHT VARIABLES ----------
 
@@ -770,7 +778,6 @@ class CoDrone:
 
     ### FLIGHT VARIABLES ------------- END
 
-
     ### FLIGHT COMMANDS --------------
 
     def move(self, duration=None, roll=None, pitch=None, yaw=None, throttle=None):
@@ -785,9 +792,9 @@ class CoDrone:
 
         # move(duration, roll, pitch, yaw, throttle)
         else:
-            self.sendControlDuration(roll,pitch,yaw,throttle, duration)
+            self.sendControlDuration(roll, pitch, yaw, throttle, duration)
 
-    def go(self, direction, duration = 0.5, power = 50):
+    def go(self, direction, duration=0.5, power=50):
         # string matching : forward/backward , right/left, up/down
         pitch = ((direction == Direction.Forward) - (direction == Direction.Backward)) * power
         roll = ((direction == Direction.Right) - (direction == Direction.Left)) * power
@@ -803,6 +810,7 @@ class CoDrone:
         else:
             self.sendControlDuration(0, 0, yaw, 0, duration)
 
+    @lockState
     def turnDegree(self, direction, degree):
         if not isinstance(direction, Direction) or not isinstance(degree, Degree):
             return None
@@ -811,25 +819,24 @@ class CoDrone:
         bias = 3
 
         yawPast = self.getAngularSpeed().Yaw
-        direction = ((direction == Direction.Right) - (direction == Direction.Left))    # right = 1 / left = -1
+        direction = ((direction == Direction.Right) - (direction == Direction.Left))  # right = 1 / left = -1
         degreeGoal = direction * (degree.value - bias) + yawPast
 
         start_time = time.time()
-        while (time.time() - start_time) < degree.value/3:
-            yaw = self._data.attitude.Yaw   # Receive attitude data every time you send a flight command
-
-            if abs(yawPast - yaw) > 180:   # When the sign changes
+        while (time.time() - start_time) < degree.value / 3:
+            yaw = self._data.attitude.Yaw  # Receive attitude data every time you send a flight command
+            if abs(yawPast - yaw) > 180:  # When the sign changes
                 degreeGoal -= direction * 360
             yawPast = yaw
-            if direction > 0 and degreeGoal > yaw:    # Clockwise
+            if direction > 0 and degreeGoal > yaw:  # Clockwise
                 self.sendControl(0, 0, power, 0)
-            elif direction < 0 and degreeGoal < yaw:   # Counterclockwise
+            elif direction < 0 and degreeGoal < yaw:  # Counterclockwise
                 self.sendControl(0, 0, -power, 0)
             else:
                 break
             sleep(0.05)
 
-        self.sendControl(0,0,0,0)
+        self.sendControl(0, 0, 0, 0)
         sleep(self._controlSleep)
 
     def rotate90(self):
@@ -844,9 +851,10 @@ class CoDrone:
         ### TO DO ###
         pass
 
+    @lockState
     def goToHeight(self, height):
         power = 30
-        interval = 20   #height - 10 ~ height + 10
+        interval = 20  # height - 10 ~ height + 10
 
         start_time = time.time()
         while time.time() - start_time < 100:
@@ -867,9 +875,7 @@ class CoDrone:
 
     ### FLIGHT COMMANDS -----------------------END
 
-
     ### FLIGHT EVENTS -----------------------
-
     def takeoff(self):
         # Event States
         self._data.takeoffFuncFlag = 1
@@ -916,7 +922,6 @@ class CoDrone:
         self.transfer(header, control)
         sleep(self._controlSleep)
 
-
     def emergencyStop(self):
         # Event states
         self._data.stopFuncFlag = 1
@@ -937,9 +942,9 @@ class CoDrone:
 
     ### FLIGHT EVENTS ------------------ END
 
-    
     ### SENSORS & STATUS ---------------
 
+    @lockState
     def getDataWhile(self, dataType):
         flag = self._storageCount.d[dataType]
         self.sendRequest(dataType)
@@ -1001,9 +1006,7 @@ class CoDrone:
 
     ### SENSORS & STATUS --------------- END
 
-
     ### LEDS -----------
-
     def setArmRGB(self, red, green, blue):
         if ((not isinstance(red, int)) or
                 (not isinstance(green, int)) or
@@ -1122,6 +1125,7 @@ class CoDrone:
         self.transfer(header, data)
         sleep(self._LEDSleep)
 
+    @lockState
     def resetDefaultLED(self):
         header = Header()
 
@@ -1142,7 +1146,8 @@ class CoDrone:
         self.transfer(header, data)
         sleep(self._LEDSleep)
 
-    ##TEST
+    ## TEST
+    @lockState
     def setEyeMode(self, mode):
         # EYE doesn't have flow mode
         if not isinstance(mode, Mode) or mode.value > Mode.Pulsing.value:
@@ -1164,6 +1169,7 @@ class CoDrone:
         self.transfer(header, data)
         sleep(self._LEDSleep)
 
+    @lockState
     def setArmMode(self, mode):
         if not isinstance(mode, Mode):
             return None
@@ -1184,6 +1190,7 @@ class CoDrone:
         self.transfer(header, data)
         sleep(self._LEDSleep)
 
+    @lockState
     def setArmDefaultMode(self, mode):
         if not isinstance(mode, Mode):
             return None
@@ -1203,6 +1210,7 @@ class CoDrone:
         self.transfer(header, data)
         sleep(self._LEDSleep)
 
+    @lockState
     def setEyeDefaultMode(self, mode):
         # EYE doesn't have flow mode
         if not isinstance(mode, Mode) or mode.value > Mode.Pulsing.value:
@@ -1412,7 +1420,6 @@ class CoDrone:
 
     # Setup End
 
-
     # Command Start
 
     def sendControlWhile(self, roll, pitch, yaw, throttle, timeMs):
@@ -1449,7 +1456,6 @@ class CoDrone:
         return self.sendControlDrive(wheel, accel)
 
     # Command End
-
 
     # Device Start
 
@@ -1500,10 +1506,7 @@ class CoDrone:
 
     # Device End
 
-
-
     # Light Start
-
 
     def sendLightMode(self, lightMode, colors, interval):
 
@@ -1733,10 +1736,7 @@ class CoDrone:
 
     # Light End
 
-
-
     # Link Start
-
 
     def sendLinkModeBroadcast(self, modeLinkBroadcast):
 
