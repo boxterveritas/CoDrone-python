@@ -49,6 +49,7 @@ class Timer:
         self.trim = [0, 0]
         self.range = [0, 0]
         self.state = [0, 0]
+        self.imageFlow = [0, 0]
 
         # Event states flag
         self.upsideDown = [5, 0]
@@ -62,12 +63,12 @@ class Timer:
 
 
 class Data(EventStatesFunc):
-    def __init__(self):
+    def __init__(self, timer):
         # criterion for low battery
         self._LowBatteryPercent = 50
 
         super().__init__()
-        self.timer = Timer()
+        self.timer = timer
         self.address = 0
         self.attitude = Angle(0, 0, 0)
         self.accel = Axis(0, 0, 0)
@@ -88,29 +89,36 @@ class Data(EventStatesFunc):
 
     def eventUpdateAddress(self, data):
         self.address = data.address
+        self.timer.address[1] = time.time()
 
     def eventUpdateAttitude(self, data):
         self.attitude = Angle(data.roll, data.pitch, data.yaw)
+        self.timer.address[1] = time.time()
 
     def eventUpdateBattery(self, data):
         self.batteryPercent = data.batteryPercent
         self.batteryVoltage = data.voltage
+        self.timer.battery[1] = time.time()
 
     def eventUpdateImu(self, data):
         self.accel = Axis(data.accelX, data.accelY, data.accelZ)
         self.gyro = Angle(data.gyroRoll, data.gyroPitch, data.gyroYaw)
+        self.timer.imu[1] = time.time()
 
     def eventUpdatePressure(self, data):
         self.pressure = data.pressure
         self.temperature = data.temperature
+        self.timer.pressure[1] = time.time()
 
     def eventUpdateRange(self, data):
         self.range = data.bottom
+        self.timer.range[1] = time.time()
 
     def eventUpdateState_(self, data):
         self.reversed = data.sensorOrientation
         self.batteryPercent = data.battery
         self.state = data.modeFlight
+        self.timer.state[1] = time.time()
 
     def eventUpdateState(self, data):
         self.reversed = data.sensorOrientation
@@ -118,7 +126,7 @@ class Data(EventStatesFunc):
         self.state = data.modeFlight
         # check Event states flags
         start_time = time.time()
-        # automatically checking (request in _receiving function)
+        # automatically checking
         if self.upsideDown is not None and self.reversed != SensorOrientation.Normal:
             if start_time - self.timer.upsideDown[1] > self.timer.upsideDown[0]:
                 self.upsideDown()
@@ -161,10 +169,11 @@ class Data(EventStatesFunc):
 
     def eventUpdateTrim(self, data):
         self.trim = Flight(data.roll, data.pitch, data.yaw, data.throttle)
+        self.timer.trim[1] = time.time()
 
     def eventUpdateImageFlow(self, data):
         self.imageFlow = Position(data.positionX, data.positionY)
-
+        self.timer.imageFlow[1] = time.time()
 
 class CoDrone:
     # BaseFunctions Start
@@ -206,8 +215,8 @@ class CoDrone:
         self.timeStartProgram = time.time()  # record program starting time
 
         # Data
-        self._data = Data()
         self._timer = Timer()
+        self._data = Data(self._timer)
         self._setAllEventHandler()
         self._lowBatteryPercent = 30
 
@@ -597,7 +606,7 @@ class CoDrone:
 
                         if (len(self._devices[i].name) > 12) and (deviceName == self._devices[i].name[0:12]):
                             targetDevice = self._devices[i]
-                            break;
+                            break
 
                     if targetDevice != None:
                         # if find the device, connect the device
@@ -626,7 +635,6 @@ class CoDrone:
         ## How to alert low battery
         if self._flagConnected:
             battery = self.getBatteryPercentage()
-            if battery == 0: battery = self.getBatteryPercentage()
             print("Drone battery : [", battery, "]")
             if battery < self._lowBatteryPercent:
                 print("Low Battery!!")
@@ -839,17 +847,25 @@ class CoDrone:
         self.sendControl(0, 0, 0, 0)
         sleep(self._controlSleep)
 
-    def rotate90(self):
-        ### TO DO ###
-        pass
-
+    ## TEST
     def rotate180(self):
-        ### TO DO ###
-        pass
+        power = 20
+        bias = 3
 
-    def rotate360(self):
-        ### TO DO ###
-        pass
+        yawPast = self.getAngularSpeed().Yaw
+        degreeGoal = yawPast - bias
+
+        start_time = time.time()
+        while (time.time() - start_time) < 60:
+            yaw = self._data.attitude.Yaw  # Receive attitude data every time you send a flight command
+            if abs(yawPast - yaw) > 180:  # When the sign changes
+                degreeGoal -= 360
+            yawPast = yaw
+            if degreeGoal > yaw:  # Clockwise
+                self.sendControl(0, 0, power, 0)
+            else:
+                break
+            sleep(0.05)
 
     @lockState
     def goToHeight(self, height):
@@ -861,10 +877,10 @@ class CoDrone:
             state = self.getHeight()
 
             differ = height - state
-            if differ > interval:
+            if differ > interval:   # Up
                 self.sendControl(0, 0, 0, power)
                 sleep(0.1)
-            elif differ < -interval:
+            elif differ < -interval:    # Down
                 self.sendControl(0, 0, 0, -power)
                 sleep(0.1)
             else:
@@ -877,15 +893,18 @@ class CoDrone:
 
     ### FLIGHT EVENTS -----------------------
     def takeoff(self):
-        # Event States
-        self._data.takeoffFuncFlag = 1
+        self._data.takeoffFuncFlag = 1  # Event States
+
         header = Header()
 
         header.dataType = DataType.Command
         header.length = Command.getSize()
+
         data = Command()
+
         data.commandType = CommandType.FlightEvent
         data.option = FlightEvent.TakeOff.value
+
         self.transfer(header, data)
         sleep(3)
 
@@ -945,63 +964,75 @@ class CoDrone:
     ### SENSORS & STATUS ---------------
 
     @lockState
-    def getDataWhile(self, dataType):
-        flag = self._storageCount.d[dataType]
+    def getDataWhile(self, dataType, timer=None):
+        timeStart = time.time()
+
+        if timer is not None:
+            if timer[0] > (timeStart - timer[1]):
+                return False
+
+        recieveFlag = self._storageCount.d[dataType]
         self.sendRequest(dataType)
-        start_time = time.time()
-        # Break the loop if request time is over 1sec
-        while (self._storageCount.d[dataType] == flag) and (time.time() - start_time < 0.5):
+
+        # Break the loop if request time is over 0.15sec
+        # request maximum 3 times
+        resendFlag = 0
+        while self._storageCount.d[dataType] == recieveFlag:
+            interval = time.time() - timeStart
+            if resendFlag == 0 and interval > 0.03:
+                self.sendRequest(dataType)
+                resendFlag = 1
+            elif resendFlag == 1 and interval > 0.06:
+                self.sendRequest(dataType)
+                resendFlag = 2
+            elif interval > 0.15:
+                break
             sleep(0.01)
-        return self._storageCount.d[dataType] > flag
+        return self._storageCount.d[dataType] > recieveFlag
 
     def getHeight(self):
-        self.getDataWhile(DataType.Range)
+        self.getDataWhile(DataType.Range, self._timer.range)
         return self._data.range
 
     def getPressure(self):
-        self.getDataWhile(DataType.Pressure)
+        self.getDataWhile(DataType.Pressure, self._timer.pressure)
         return self._data.pressure
 
     def getDroneTemp(self):
-        self.getDataWhile(DataType.Pressure)
+        self.getDataWhile(DataType.Pressure, self._timer.pressure)
         return self._data.temperature
 
     def getAngularSpeed(self):
-        self.getDataWhile(DataType.Attitude)
+        self.getDataWhile(DataType.Attitude, self._timer.attitude)
         return self._data.attitude
 
     def getGyroAngles(self):
-        self.getDataWhile(DataType.Imu)
+        if self.getDataWhile(DataType.Imu, self._timer.imu):
+            self._timer.imu[1] = time.time()
         return self._data.gyro
 
     def getAccelerometer(self):
-        self.getDataWhile(DataType.Imu)
+        self.getDataWhile(DataType.Imu, self._timer.imu)
         return self._data.accel
 
     def getOptFlowPosition(self):
-        self.getDataWhile(DataType.ImageFlow)
+        self.getDataWhile(DataType.ImageFlow, self._timer.imageFlow)
         return self._data.imageFlow
 
     def getState(self):
-        self.getDataWhile(DataType.State)
+        self.getDataWhile(DataType.State, self._timer.state)
         return self._data.state
 
     def getBatteryPercentage(self):
-        timeStart = time.time()
-        if self._timer.battery[0] < (timeStart - self._timer.battery[1]):
-            self.getDataWhile(DataType.Battery)
-            self._timer.battery[1] = timeStart
+        self.getDataWhile(DataType.Battery, self._timer.battery)
         return self._data.batteryPercent
 
     def getBatteryVoltage(self):
-        timeStart = time.time()
-        if self._timer.battery[0] < timeStart - self._timer.battery[1]:
-            self.getDataWhile(DataType.Battery)
-            self._timer.battery[1] = timeStart
+        self.getDataWhile(DataType.Battery, self._timer.battery)
         return self._data.batteryVoltage
 
     def getTrim(self):
-        self.getDataWhile(DataType.TrimFlight)
+        self.getDataWhile(DataType.TrimFlight, self._timer.trim)
         return self._data.trim
 
     ### SENSORS & STATUS --------------- END
@@ -1140,13 +1171,12 @@ class CoDrone:
         data.interval = self._LEDInterval
 
         self.transfer(header, data)
-        sleep(self.LEDSleep + 0.05)
+        sleep(self._LEDSleep + 0.05)
 
         data.mode = LightModeDrone.ArmHold
         self.transfer(header, data)
         sleep(self._LEDSleep)
 
-    ## TEST
     @lockState
     def setEyeMode(self, mode):
         # EYE doesn't have flow mode

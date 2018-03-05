@@ -72,7 +72,8 @@ def testColor(drone):
 
 def testData(drone):
     print("---- START Data Test")
-    for i in range(2):
+    drone.takeoff()
+    for i in range(10):
         print("Height :" , drone.getHeight())
         print("battery percentage :" ,drone.getBatteryPercentage())
         print("battery voltage :" ,drone.getBatteryVoltage())
@@ -237,7 +238,8 @@ read the height from the table.
 """
 def testGetHeight(drone):
     drone.takeoff()
-    drone.goToHeight(1200)
+    drone.go(Direction.Up, 1, 30)
+    sleep(1)
     print("ground height :" , drone.getHeight())
     drone.go(Direction.Forward, 1)
     sleep(2)
@@ -272,46 +274,15 @@ def testBatteryLow(drone):
         sleep(1)
 
     drone.onLowBattery(RedFlashEyes)
-
+    print(drone.getBatteryPercentage())
     # check
     drone.takeoff()
-    drone.go(Direction.Left,1)
-    drone.go(Direction.Right,1)
-
+    while(drone.getBatteryPercentage() > 50):
+        drone.go(Direction.Left,1)
+        drone.go(Direction.Right,1)
+    sleep(1)
     print(drone.getBatteryPercentage())
     sleep(1)
-    drone.land()
-
-"""
-    Fly in a circle: 
-    Just fly in a circle that will fit in our room. 
-    Just needs to see it ends where it started.
-"""
-def testCircle2(drone):
-    x_list = []
-    y_list = []
-    num = 8
-
-    # Find the coordinates of the points that make up the circle
-    interval = (math.pi * 2) / num
-    for d in [interval * i for i in range(num)]:
-        x_list.append(int((math.cos(d)*100/2 - 100)))
-        y_list.append(int(math.sin(d)*100/2))
-
-    # Get distance between two points.
-    for i in range(1,num):
-        x_list[i-1] = x_list[i] - x_list[i-1]
-        y_list[i-1] = y_list[i] - y_list[i-1]
-    x_list[num-1] = -x_list[num-1]
-    y_list[num-1] = -y_list[num-1]
-
-    drone.takeoff()
-    print(x_list, y_list)
-    for i in range(num):
-        drone.sendControl(y_list[i], x_list[i]/2, 0, 0)
-        sleep(0.5)
-        #t = drone.getGyroAngles()
-        #print(t)
     drone.land()
 
 """
@@ -329,13 +300,12 @@ def testCircle(drone):
     start_time = time.time()
     drone.sendControl(5, 0, 0, 0)
     while (start_time - time.time()) < 15:
-        drone.sendRequest(DataType.Attitude)
-        sleep(0.1)
         if abs(yaw - drone._data.attitude.Yaw) > 180:
             degree += 360
         yaw = drone._data.attitude.Yaw
         if degree < yaw:
             drone.sendControl(10+int(abs(yaw - degree)/100), 0, power, 0)
+            sleep(0.1)
         else:
             break
     drone.hover(1)
@@ -427,21 +397,13 @@ def testTurn(drone):
     sleep(3)
 
 def testDrone():
-    drone = CoDrone()
+    drone = CoDrone(1,1,1,1)
     while not drone.isConnected():
         drone.connect("COM4", "PETRONE 2455")
         sleep(3)
         print("?")
-    #testZigZag(drone)
-    #testL(drone)
-    #testCircle(drone)
-    #testSquare(drone)
-    #testHeight(drone)
-    #testTurn(drone)
-    #testGetHeight(drone)
-    #testSpiral(drone)
-    testColor(drone)
-    #testBatteryLow(drone)
+
+    testData(drone)
     drone.sendLinkDisconnect()
     sleep(3)
     drone.close()
