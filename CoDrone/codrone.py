@@ -978,17 +978,13 @@ class CoDrone:
         recieveFlag = self._storageCount.d[dataType]
         self.sendRequest(dataType)
 
-        # Break the loop if request time is over 0.15sec
-        # request maximum 3 times
-        resendFlag = 0
+        # Break the loop if request time is over 0.15sec, send the request maximum 2 times
+        resendFlag = 1
         while self._storageCount.d[dataType] == recieveFlag:
             interval = time.time() - timeStart
-            if resendFlag == 0 and interval > 0.03:
+            if interval > 0.03 * resendFlag and resendFlag < 3:
                 self.sendRequest(dataType)
-                resendFlag = 1
-            elif resendFlag == 1 and interval > 0.06:
-                self.sendRequest(dataType)
-                resendFlag = 2
+                resendFlag += 1
             elif interval > 0.15:
                 break
             sleep(0.01)
@@ -1047,13 +1043,14 @@ class CoDrone:
     @lockState
     def _checkAck(self, header, data, dataType):
         self._data.ack.dataType = 0
-        flag = 0
+        flag = 1
 
         self.transfer(header, data)
         startTime = time.time()
         while self._data.ack.dataType != dataType:
             interval = time.time() - startTime
-            if (flag == 0 and interval > 0.06) or (flag == 1 and interval > 0.12):
+            # Break the loop if request time is over 0.3sec, send the request maximum 2 times
+            if interval > 0.06 * flag and flag < 3:
                 self.transfer(header, data)
                 flag += 1
             elif interval > 0.3:
@@ -1081,8 +1078,7 @@ class CoDrone:
         data.interval = self._LEDInterval
         self._LEDColor = [red, green, blue]
 
-        return self._checkAck(header, data, DataType.LightModeColor)
-
+        self._checkAck(header, data, DataType.LightModeColor)
 
     def setEyeRGB(self, red, green, blue):
         if ((not isinstance(red, int)) or
@@ -1104,7 +1100,7 @@ class CoDrone:
         data.interval = self._LEDInterval
         self._LEDColor = [red, green, blue]
 
-        return self._checkAck(header,data,DataType.LightModeColor)
+        self._checkAck(header,data,DataType.LightModeColor)
 
     def setAllRGB(self, red, green, blue):
         if ((not isinstance(red, int)) or
@@ -1152,7 +1148,7 @@ class CoDrone:
         data.color.b = blue
         data.interval = self._LEDInterval
 
-        return self._checkAck(header, data, DataType.LightModeDefaultColor)
+        self._checkAck(header, data, DataType.LightModeDefaultColor)
 
     def setEyeDefaultRGB(self, red, green, blue):
         if ((not isinstance(red, int)) or
@@ -1173,7 +1169,7 @@ class CoDrone:
         data.color.b = blue
         data.interval = self._LEDInterval
 
-        return self._checkAck(header, data, DataType.LightModeDefaultColor)
+        self._checkAck(header, data, DataType.LightModeDefaultColor)
 
     def resetDefaultLED(self):
         header = Header()
@@ -1188,10 +1184,10 @@ class CoDrone:
         data.color.b = 0
         data.interval = self._LEDInterval
 
-        return self._checkAck(header, data, DataType.LightModeDefaultColor)
+        self._checkAck(header, data, DataType.LightModeDefaultColor)
 
         data.mode = LightModeDrone.ArmHold
-        return self._checkAck(header, data, DataType.LightModeDefaultColor)
+        self._checkAck(header, data, DataType.LightModeDefaultColor)
 
     def setEyeMode(self, mode):
         # EYE doesn't have flow mode
@@ -1230,7 +1226,7 @@ class CoDrone:
         data.color.r, data.color.g, data.color.b = self._LEDColor
         data.interval = self._LEDInterval
 
-        return self._checkAck(header, data, DataType.LightModeColor)
+        self._checkAck(header, data, DataType.LightModeColor)
 
     def setArmDefaultMode(self, mode):
         if not isinstance(mode, Mode):
@@ -1248,7 +1244,7 @@ class CoDrone:
         data.color.r, data.color.g, data.color.b = self._LEDColor
         data.interval = self._LEDInterval
 
-        return self._checkAck(header, data, DataType.LightModeDefaultColor)
+        self._checkAck(header, data, DataType.LightModeDefaultColor)
 
     def setEyeDefaultMode(self, mode):
         # EYE doesn't have flow mode
@@ -1267,7 +1263,7 @@ class CoDrone:
         data.color.r, data.color.g, data.color.b = self._LEDColor
         data.interval = self._LEDInterval
 
-        return self._checkAck(header, data, DataType.LightModeDefaultColor)
+        self._checkAck(header, data, DataType.LightModeDefaultColor)
 
     ### LEDS ----------- END
 
