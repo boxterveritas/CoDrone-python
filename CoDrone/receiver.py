@@ -1,7 +1,5 @@
 import time
-
 from crc import CRC16
-
 from protocol import *
 
 

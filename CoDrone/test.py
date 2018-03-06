@@ -1,5 +1,4 @@
 from codrone import *
-import math
 
 flag = 0
 battery = 0
@@ -275,11 +274,13 @@ def testBatteryLow(drone):
 
     drone.onLowBattery(RedFlashEyes)
     print(drone.getBatteryPercentage())
-    # check
+
     drone.takeoff()
     while(drone.getBatteryPercentage() > 50):
-        drone.go(Direction.Left,1)
-        drone.go(Direction.Right,1)
+        drone.go(Direction.Left,1,70)
+        drone.go(Direction.Right,1, 30)
+        print(drone.getBatteryPercentage())
+
     sleep(1)
     print(drone.getBatteryPercentage())
     sleep(1)
@@ -397,36 +398,16 @@ def testTurn(drone):
     sleep(3)
 
 def testDrone():
-    drone = CoDrone(1,1,1,1)
+    drone = CoDrone()
     while not drone.isConnected():
         drone.connect("COM4", "PETRONE 2455")
         sleep(3)
         print("?")
 
-    for i in range(10):
-        #drone.setAllRGB(i*10,i,i*10)
-        #drone.setArmDefaultMode(Mode.Flow)
-        drone.setEyeDefaultMode(Mode.Blinking)
-        drone.setArmDefaultRGB(0,0,255)
-        drone.setEyeDefaultRGB(0,0,255)
-        #drone.setArmMode(Mode.Blinking)
-        #drone.setEyeMode(Mode.DoubleBlink)
-        sleep(1)
+    drone.takeoff()
 
     drone.sendLinkDisconnect()
     sleep(3)
     drone.close()
-
-def testCoDrone():
-    drone = CoDrone()
-
-    while not drone.isConnected():
-        print("printing")
-        drone.connect()
-        sleep(3)
-
-    drone.sendTakeOff()
-    drone.sendControlWhile(0,0,0,0,3)
-    drone.sendLanding()
 
 testDrone()
