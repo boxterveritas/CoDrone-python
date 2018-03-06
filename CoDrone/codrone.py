@@ -82,6 +82,7 @@ class Data(EventStatesFunc):
         self.trim = Flight(0, 0, 0, 0)
         self.range = 0
         self.state = 0
+        self.ack = Ack()
 
         # Depending on using flight commend
         self.takeoffFuncFlag = 0
@@ -175,6 +176,9 @@ class Data(EventStatesFunc):
         self.imageFlow = Position(data.positionX, data.positionY)
         self.timer.imageFlow[1] = time.time()
 
+    def eventUpdateAck(self, data):
+        self.ack = data
+
 class CoDrone:
     # BaseFunctions Start
 
@@ -229,7 +233,6 @@ class CoDrone:
         self._LEDArmMode = LightModeDrone.ArmHold
         self._LEDEyeMode = LightModeDrone.EyeHold
         self._LEDInterval = 100
-        self._LEDSleep = 0.25
         colorama.init()
 
     def __del__(self):
@@ -476,6 +479,7 @@ class CoDrone:
         self._eventHandler.d[DataType.Imu] = self._data.eventUpdateImu
         self._eventHandler.d[DataType.TrimFlight] = self._data.eventUpdateTrim
         self._eventHandler.d[DataType.ImageFlow] = self._data.eventUpdateImageFlow
+        self._eventHandler.d[DataType.Ack] = self._data.eventUpdateAck
 
     def setEventHandler(self, dataType, eventHandler):
         if (not isinstance(dataType, DataType)):
@@ -1038,6 +1042,25 @@ class CoDrone:
     ### SENSORS & STATUS --------------- END
 
     ### LEDS -----------
+
+    # check response after requesting data
+    @lockState
+    def _checkAck(self, header, data, dataType):
+        self._data.ack.dataType = 0
+        flag = 0
+
+        self.transfer(header, data)
+        startTime = time.time()
+        while self._data.ack.dataType != dataType:
+            interval = time.time() - startTime
+            if (flag == 0 and interval > 0.06) or (flag == 1 and interval > 0.12):
+                self.transfer(header, data)
+                flag += 1
+            elif interval > 0.3:
+                break
+            sleep(0.01)
+        return self._data.ack.dataType == dataType
+
     def setArmRGB(self, red, green, blue):
         if ((not isinstance(red, int)) or
                 (not isinstance(green, int)) or
@@ -1058,8 +1081,8 @@ class CoDrone:
         data.interval = self._LEDInterval
         self._LEDColor = [red, green, blue]
 
-        self.transfer(header, data)
-        sleep(self._LEDSleep)
+        return self._checkAck(header, data, DataType.LightModeColor)
+
 
     def setEyeRGB(self, red, green, blue):
         if ((not isinstance(red, int)) or
@@ -1081,8 +1104,7 @@ class CoDrone:
         data.interval = self._LEDInterval
         self._LEDColor = [red, green, blue]
 
-        self.transfer(header, data)
-        sleep(self._LEDSleep)
+        return self._checkAck(header,data,DataType.LightModeColor)
 
     def setAllRGB(self, red, green, blue):
         if ((not isinstance(red, int)) or
@@ -1106,11 +1128,10 @@ class CoDrone:
         data.interval = self._LEDInterval
         self._LEDColor = [red, green, blue]
 
-        self.transfer(header, data)
-        sleep(self._LEDSleep + 0.05)
+        self._checkAck(header, data, DataType.LightModeColor)
 
         data.mode = self._LEDArmMode
-        self.transfer(header, data)
+        self._checkAck(header, data, DataType.LightModeColor)
 
     def setArmDefaultRGB(self, red, green, blue):
         if ((not isinstance(red, int)) or
@@ -1131,8 +1152,7 @@ class CoDrone:
         data.color.b = blue
         data.interval = self._LEDInterval
 
-        self.transfer(header, data)
-        sleep(self._LEDSleep)
+        return self._checkAck(header, data, DataType.LightModeDefaultColor)
 
     def setEyeDefaultRGB(self, red, green, blue):
         if ((not isinstance(red, int)) or
@@ -1153,10 +1173,8 @@ class CoDrone:
         data.color.b = blue
         data.interval = self._LEDInterval
 
-        self.transfer(header, data)
-        sleep(self._LEDSleep)
+        return self._checkAck(header, data, DataType.LightModeDefaultColor)
 
-    @lockState
     def resetDefaultLED(self):
         header = Header()
 
@@ -1170,14 +1188,11 @@ class CoDrone:
         data.color.b = 0
         data.interval = self._LEDInterval
 
-        self.transfer(header, data)
-        sleep(self._LEDSleep + 0.05)
+        return self._checkAck(header, data, DataType.LightModeDefaultColor)
 
         data.mode = LightModeDrone.ArmHold
-        self.transfer(header, data)
-        sleep(self._LEDSleep)
+        return self._checkAck(header, data, DataType.LightModeDefaultColor)
 
-    @lockState
     def setEyeMode(self, mode):
         # EYE doesn't have flow mode
         if not isinstance(mode, Mode) or mode.value > Mode.Pulsing.value:
@@ -1196,10 +1211,8 @@ class CoDrone:
         data.color.r, data.color.g, data.color.b = self._LEDColor
         data.interval = self._LEDInterval
 
-        self.transfer(header, data)
-        sleep(self._LEDSleep)
+        return self._checkAck(header, data, DataType.LightModeColor)
 
-    @lockState
     def setArmMode(self, mode):
         if not isinstance(mode, Mode):
             return None
@@ -1217,10 +1230,8 @@ class CoDrone:
         data.color.r, data.color.g, data.color.b = self._LEDColor
         data.interval = self._LEDInterval
 
-        self.transfer(header, data)
-        sleep(self._LEDSleep)
+        return self._checkAck(header, data, DataType.LightModeColor)
 
-    @lockState
     def setArmDefaultMode(self, mode):
         if not isinstance(mode, Mode):
             return None
@@ -1237,10 +1248,8 @@ class CoDrone:
         data.color.r, data.color.g, data.color.b = self._LEDColor
         data.interval = self._LEDInterval
 
-        self.transfer(header, data)
-        sleep(self._LEDSleep)
+        return self._checkAck(header, data, DataType.LightModeDefaultColor)
 
-    @lockState
     def setEyeDefaultMode(self, mode):
         # EYE doesn't have flow mode
         if not isinstance(mode, Mode) or mode.value > Mode.Pulsing.value:
@@ -1258,8 +1267,7 @@ class CoDrone:
         data.color.r, data.color.g, data.color.b = self._LEDColor
         data.interval = self._LEDInterval
 
-        self.transfer(header, data)
-        sleep(self._LEDSleep)
+        return self._checkAck(header, data, DataType.LightModeDefaultColor)
 
     ### LEDS ----------- END
 

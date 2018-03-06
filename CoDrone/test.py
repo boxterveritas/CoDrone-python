@@ -403,7 +403,16 @@ def testDrone():
         sleep(3)
         print("?")
 
-    testData(drone)
+    for i in range(10):
+        #drone.setAllRGB(i*10,i,i*10)
+        #drone.setArmDefaultMode(Mode.Flow)
+        drone.setEyeDefaultMode(Mode.Blinking)
+        drone.setArmDefaultRGB(0,0,255)
+        drone.setEyeDefaultRGB(0,0,255)
+        #drone.setArmMode(Mode.Blinking)
+        #drone.setEyeMode(Mode.DoubleBlink)
+        sleep(1)
+
     drone.sendLinkDisconnect()
     sleep(3)
     drone.close()
