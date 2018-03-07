@@ -276,7 +276,7 @@ def testBatteryLow(drone):
     print(drone.getBatteryPercentage())
 
     drone.takeoff()
-    while(drone.getBatteryPercentage() > 50):
+    while drone.getBatteryPercentage() > 50:
         drone.go(Direction.Left,1,70)
         drone.go(Direction.Right,1, 30)
         print(drone.getBatteryPercentage())
@@ -397,6 +397,11 @@ def testTurn(drone):
     drone.land()
     sleep(3)
 
+def testSetRoll(drone):
+    drone.setRoll(50)
+    drone.move(1)
+
+    drone.set
 def testDrone():
     drone = CoDrone()
     while not drone.isConnected():

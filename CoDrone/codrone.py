@@ -27,7 +27,6 @@ def convertByteArrayToString(dataArray):
 
 
 class CoDrone:
-    ### BaseFunctions -------- Start
 
     def __init__(self, flagCheckBackground=True, flagShowErrorMessage=False, flagShowLogMessage=False,
                  flagShowTransferData=False, flagShowReceiveData=False):
@@ -38,7 +37,8 @@ class CoDrone:
         self._index = 0
 
         # thread
-        self._thread = None
+        self._threadReceiving = None
+        self._threadSendState = None
         self._lock = RLock()
         self._lockState = None
         self._lockReciving = None
@@ -84,93 +84,7 @@ class CoDrone:
     def __del__(self):
         self.close()
 
-    def _receiving(self, lock, lockState):
-        self._lockReciving = RLock()
-        while self._flagThreadRun:
-            with lock and lockState and self._lockReciving:
-                self._bufferQueue.put(self._serialport.read())
-
-            # auto-update when background check for receive data is on
-            if self._flagCheckBackground:
-                while self.check() != DataType.None_:
-                    pass
-                    # sleep(0.001)
-
-    def _sendRequestState(self, lock):
-        self._lockState = RLock()
-        while self._flagThreadRun:
-            if self._flagConnected:
-                with lock and self._lockState:
-                    self.sendRequest(DataType.State)
-                    sleep(0.01)
-            sleep(3)
-
-    # Decorator
-    def lockState(func):
-        def wrapper(self, *args, **kwargs):
-            with self._lockState:
-                return func(self, *args, **kwargs)
-        return wrapper
-
-    def isOpen(self):
-        if self._serialport is not None:
-            return self._serialport.isOpen()
-        else:
-            return False
-
-    def isConnected(self):
-        if not self.isOpen():
-            return False
-        else:
-            return self._flagConnected
-
-    def open(self, portName="None"):
-        if eq(portName, "None"):
-            nodes = comports()
-            size = len(nodes)
-            if size > 0:
-                portName = nodes[size - 1].device
-            else:
-                return False
-
-        self._serialport = serial.Serial(
-            port=portName,
-            baudrate=115200,
-            parity=serial.PARITY_NONE,
-            stopbits=serial.STOPBITS_ONE,
-            bytesize=serial.EIGHTBITS,
-            timeout=0)
-
-        if self.isOpen():
-            self._flagThreadRun = True
-            self._threadSendState = Thread(target=self._sendRequestState, args=(self._lock,), daemon=True).start()
-            self._thread = Thread(target=self._receiving, args=(self._lock, self._lockState,), daemon=True).start()
-
-            # print log
-            self._printLog("Connected.({0})".format(portName))
-            return True
-        else:
-            # print error message
-            self._printError("Could not connect to PETRONE LINK.")
-            return False
-
-    def close(self):
-        # print log
-        if self.isOpen():
-            self._printLog("Closing serial port.")
-
-        if self._flagThreadRun:
-            self._flagThreadRun = False
-            sleep(0.01)
-
-        if self._thread is not None:
-            self._thread.join()
-
-        while self.isOpen():
-            self._serialport.close()
-            sleep(0.01)
-
-    def makeTransferDataArray(self, header, data):
+    def _makeTransferDataArray(self, header, data):
         if (header is None) or (data is None):
             return None
 
@@ -188,18 +102,97 @@ class CoDrone:
 
         return dataArray
 
-    def transfer(self, header, data):
+    def _transfer(self, header, data):
         if not self.isOpen():
             return
-        dataArray = self.makeTransferDataArray(header, data)
+
+        dataArray = self._makeTransferDataArray(header, data)
         with self._lockReciving and self._lock and self._lockState:
             self._serialport.write(dataArray)
 
-        # print transfer data
+        # print _transfer data
         self._printTransferData(dataArray)
         return dataArray
 
-    def check(self):
+    def _eventLinkHandler(self, eventLink):
+        if eventLink == EventLink.Scanning:
+            self._devices.clear()
+            self._flagDiscover = True
+
+        elif eventLink == EventLink.ScanStop:
+            self._flagDiscover = False
+
+        elif eventLink == EventLink.Connected:
+            self._flagConnected = True
+
+        elif eventLink == EventLink.Disconnected:
+            self._flagConnected = False
+
+        # print log
+        self._printLog(eventLink)
+
+    def _eventLinkEvent(self, data):
+        self._eventLinkHandler(data.eventLink)
+
+    def _eventLinkEventAddress(self, data):
+        self._eventLinkHandler(data.eventLink)
+
+    def _eventLinkDiscoveredDevice(self, data):
+        self._devices.append(data)
+
+        # print log
+        self._printLog(
+            "LinkDiscoveredDevice / {0} / {1} / {2} / {3}".format(data.index, convertByteArrayToString(data.address),
+                                                                  data.name, data.rssi))
+
+    def _printLog(self, message):
+
+        if self._flagShowLogMessage and message is not None:
+            print(Fore.GREEN + "[{0:10.03f}] {1}".format((time.time() - self.timeStartProgram),
+                                                         message) + Style.RESET_ALL)
+
+    def _printError(self, message):
+        if self._flagShowErrorMessage and message is not None:
+            print(
+                Fore.RED + "[{0:10.03f}] {1}".format((time.time() - self.timeStartProgram), message) + Style.RESET_ALL)
+
+    def _printTransferData(self, dataArray):
+        if (self._flagShowTransferData) and (dataArray != None) and (len(dataArray) > 0):
+            print(Back.YELLOW + Fore.BLACK + convertByteArrayToString(dataArray) + Style.RESET_ALL)
+
+    def _printReceiveData(self, dataArray):
+
+        if (self._flagShowReceiveData) and (dataArray != None) and (len(dataArray) > 0):
+            print(Back.CYAN + Fore.BLACK + convertByteArrayToString(dataArray) + Style.RESET_ALL, end='')
+
+    def _printReceiveDataEnd(self):
+
+        if self._flagShowReceiveData:
+            print("")
+
+
+    ### DATA PROCESSING THREAD -------- START
+
+    def _receiving(self, lock, lockState):
+        """
+        Data receiving Thread, Save received data to buffer.
+        Args:
+            lock: main thread lock
+            lockState: _sendRequestState lock
+        """
+        self._lockReciving = RLock()
+        while self._flagThreadRun:
+            # lock other threads for reading
+            with lock and lockState and self._lockReciving:
+                self._bufferQueue.put(self._serialport.read())
+
+            # auto-update when background check for receive data is on
+            if self._flagCheckBackground:
+                while self._check() != DataType.None_:
+                    pass
+                    # sleep(0.001)
+
+    def _check(self):
         while not self._bufferQueue.empty():
             dataArray = self._bufferQueue.get_nowait()
             self._bufferQueue.task_done()
@@ -234,44 +227,7 @@ class CoDrone:
 
         return DataType.None_
 
-    def checkDetail(self):
-        while not self._bufferQueue.empty():
-            dataArray = self._bufferQueue.get_nowait()
-            self._bufferQueue.task_done()
-
-            if (dataArray is not None) and (len(dataArray) > 0):
-                # print receive data
-                self._printReceiveData(dataArray)
-
-                self._bufferHandler.extend(dataArray)
-
-        while len(self._bufferHandler) > 0:
-            stateLoading = self._receiver.call(self._bufferHandler.pop(0))
-
-            # print error
-            if stateLoading == StateLoading.Failure:
-                # print receive data
-                self._printReceiveDataEnd()
-
-                # print error
-                self._printError(self._receiver.message)
-
-            # print log
-            if stateLoading == StateLoading.Loaded:
-                # print receive data
-                self._printReceiveDataEnd()
-
-                # print log
-                self._printLog(self._receiver.message)
-
-            if self._receiver.state == StateLoading.Loaded:
-                self._handler(self._receiver.header, self._receiver.data)
-                return self._receiver.header, self._receiver.data
-
-        return None, None
-
     def _handler(self, header, dataArray):
-
         # save input data
         message = self._runHandler(header, dataArray)
 
@@ -327,61 +283,92 @@ class CoDrone:
         self._eventHandler.d[DataType.ImageFlow] = self._data.eventUpdateImageFlow
         self._eventHandler.d[DataType.Ack] = self._data.eventUpdateAck
 
-    def setEventHandler(self, dataType, eventHandler):
-        if (not isinstance(dataType, DataType)):
-            return
+    def _sendRequestState(self, lock):
+        """
+        Data request Thread, Send state data request every 2 sec.
+        Args:
+            lock: main thread lock
+        """
+        self._lockState = RLock()
+        while self._flagThreadRun:
+            if self._flagConnected:
+                with lock and self._lockState:
+                    self.sendRequest(DataType.State)
+                    sleep(0.01)
+            sleep(2)
 
-        self._eventHandler.d[dataType] = eventHandler
+    # Decorator
+    def lockState(func):
+        def wrapper(self, *args, **kwargs):
+            with self._lockState:
+                return func(self, *args, **kwargs)
+        return wrapper
 
-    def getHeader(self, dataType):
-        if (not isinstance(dataType, DataType)):
-            return None
+    ### DATA PROCESSING THREAD -------- END
 
-        return self._storageHeader.d[dataType]
 
-    def getData(self, dataType):
-        if (not isinstance(dataType, DataType)):
-            return None
+    ### PUBLIC COMMON -------- START
 
-        return self._storage.d[dataType]
+    def isOpen(self):
+        if self._serialport is not None:
+            return self._serialport.isOpen()
+        else:
+            return False
 
-    def getCount(self, dataType):
+    def isConnected(self):
+        if not self.isOpen():
+            return False
+        else:
+            return self._flagConnected
 
-        if (not isinstance(dataType, DataType)):
-            return None
+    def open(self, portName="None"):
+        if eq(portName, "None"):
+            nodes = comports()
+            size = len(nodes)
+            if size > 0:
+                portName = nodes[size - 1].device
+            else:
+                return False
 
-        return self._storageCount.d[dataType]
+        self._serialport = serial.Serial(
+            port=portName,
+            baudrate=115200,
+            parity=serial.PARITY_NONE,
+            stopbits=serial.STOPBITS_ONE,
+            bytesize=serial.EIGHTBITS,
+            timeout=0)
 
-    def _eventLinkHandler(self, eventLink):
-        if eventLink == EventLink.Scanning:
-            self._devices.clear()
-            self._flagDiscover = True
+        if self.isOpen():
+            self._flagThreadRun = True
+            self._threadSendState = Thread(target=self._sendRequestState, args=(self._lock,), daemon=True).start()
+            self._threadReceving = Thread(target=self._receiving, args=(self._lock, self._lockState,), daemon=True).start()
 
-        elif eventLink == EventLink.ScanStop:
-            self._flagDiscover = False
+            # print log
+            self._printLog("Connected.({0})".format(portName))
+            return True
+        else:
+            # print error message
+            self._printError("Could not connect to PETRONE LINK.")
+            return False
 
-        elif eventLink == EventLink.Connected:
-            self._flagConnected = True
-
-        elif eventLink == EventLink.Disconnected:
-            self._flagConnected = False
-
+    def close(self):
         # print log
-        self._printLog(eventLink)
+        if self.isOpen():
+            self._printLog("Closing serial port.")
 
-    def _eventLinkEvent(self, data):
-        self._eventLinkHandler(data.eventLink)
+        if self._threadReceving is not None:
+            self._threadReceving.join()
 
-    def _eventLinkEventAddress(self, data):
-        self._eventLinkHandler(data.eventLink)
+        if self._threadSendState is not None:
+            self._threadSendState.join()
 
-    def _eventLinkDiscoveredDevice(self, data):
-        self._devices.append(data)
+        if self._flagThreadRun:
+            self._flagThreadRun = False
+            sleep(0.01)
 
-        # print log
-        self._printLog(
-            "LinkDiscoveredDevice / {0} / {1} / {2} / {3}".format(data.index, convertByteArrayToString(data.address),
-                                                                  data.name, data.rssi))
+        while self.isOpen():
+            self._serialport.close()
+            sleep(0.01)
 
     def connect(self, portName="None", deviceName="None", flagSystemReset=False):
 
@@ -491,35 +478,10 @@ class CoDrone:
 
         return self._flagConnected
 
-    def _printLog(self, message):
-
-        if self._flagShowLogMessage and message is not None:
-            print(Fore.GREEN + "[{0:10.03f}] {1}".format((time.time() - self.timeStartProgram),
-                                                         message) + Style.RESET_ALL)
-
-    def _printError(self, message):
-        if self._flagShowErrorMessage and message is not None:
-            print(
-                Fore.RED + "[{0:10.03f}] {1}".format((time.time() - self.timeStartProgram), message) + Style.RESET_ALL)
-
-    def _printTransferData(self, dataArray):
-        if (self._flagShowTransferData) and (dataArray != None) and (len(dataArray) > 0):
-            print(Back.YELLOW + Fore.BLACK + convertByteArrayToString(dataArray) + Style.RESET_ALL)
-
-    def _printReceiveData(self, dataArray):
-
-        if (self._flagShowReceiveData) and (dataArray != None) and (len(dataArray) > 0):
-            print(Back.CYAN + Fore.BLACK + convertByteArrayToString(dataArray) + Style.RESET_ALL, end='')
-
-    def _printReceiveDataEnd(self):
-
-        if self._flagShowReceiveData:
-            print("")
-
-    ### BaseFunctions -------- End
+    ### PUBLIC COMMON -------- END
 
 
-    ### COMMON -------- Start
+    ### SENDING -------- Start
 
     def sendPing(self):
         header = Header()
@@ -531,7 +493,7 @@ class CoDrone:
 
         data.systemTime = 0
 
-        return self.transfer(header, data)
+        return self._transfer(header, data)
 
     def sendRequest(self, dataType):
         if not isinstance(dataType, DataType):
@@ -545,12 +507,7 @@ class CoDrone:
         data = Request()
 
         data.dataType = dataType
-        return self.transfer(header, data)
-
-    ### COMMON -------- End
-
-
-    ### CONTROL -------- START
+        return self._transfer(header, data)
 
     def sendControl(self, roll, pitch, yaw, throttle):
         header = Header()
@@ -561,7 +518,7 @@ class CoDrone:
         control = Control()
         control.setAll(roll, pitch, yaw, throttle)
 
-        self.transfer(header, control)
+        self._transfer(header, control)
 
     @lockState
     def sendControlDuration(self, roll, pitch, yaw, throttle, duration):
@@ -576,16 +533,17 @@ class CoDrone:
         control = Control()
         control.setAll(roll, pitch, yaw, throttle)
 
-        self.transfer(header, control)
+        self._transfer(header, control)
 
         timeStart = time.time()
         while (time.time() - timeStart) < duration:
-            self.transfer(header, control)
+            self._transfer(header, control)
             sleep(0.02)
 
         self.hover(self._controlSleep)
 
-    ### CONTROL -------- End
+    ### SENDING -------- End
+
 
     ### FLIGHT VARIABLES -------- START
 
@@ -622,7 +580,7 @@ class CoDrone:
         data = TrimFlight()
         data.setAll(roll, pitch, yaw, throttle)
 
-        self.transfer(header, data)
+        self._transfer(header, data)
 
     def resetTrim(self, power):
         header = Header()
@@ -633,9 +591,10 @@ class CoDrone:
         data = TrimFlight()
         data.setAll(0, 0, 0, power)
 
-        self.transfer(header, data)
+        self._transfer(header, data)
 
     ### FLIGHT VARIABLES -------- END
+
 
     ### FLIGHT COMMANDS (START/STOP) -------- START
 
@@ -652,7 +611,7 @@ class CoDrone:
         data.commandType = CommandType.FlightEvent
         data.option = FlightEvent.TakeOff.value
 
-        self.transfer(header, data)
+        self._transfer(header, data)
         sleep(3)
 
     def land(self):
@@ -668,7 +627,7 @@ class CoDrone:
         data.commandType = CommandType.FlightEvent
         data.option = FlightEvent.Landing.value
 
-        self.transfer(header, data)
+        self._transfer(header, data)
         sleep(self._controlSleep)
 
     def hover(self, duration=0):
@@ -682,10 +641,10 @@ class CoDrone:
         control.setAll(0, 0, 0, 0)
 
         while (time.time() - timeStart) < duration:
-            self.transfer(header, control)
+            self._transfer(header, control)
             sleep(0.1)
 
-        self.transfer(header, control)
+        self._transfer(header, control)
         sleep(self._controlSleep)
 
     def emergencyStop(self):
@@ -704,7 +663,7 @@ class CoDrone:
         data.commandType = CommandType.Stop
         data.option = 0
 
-        self.transfer(header, data)
+        self._transfer(header, data)
 
     ### FLIGHT COMMANDS (START/STOP) -------- END
 
@@ -770,7 +729,7 @@ class CoDrone:
         self.sendControl(0, 0, 0, 0)
         sleep(self._controlSleep)
 
-    ## TEST
+    @lockState
     def rotate180(self):
         power = 20
         bias = 3
@@ -935,13 +894,13 @@ class CoDrone:
         self._data.ack.dataType = 0
         flag = 1
 
-        self.transfer(header, data)
+        self._transfer(header, data)
         startTime = time.time()
         while self._data.ack.dataType != dataType:
             interval = time.time() - startTime
             # Break the loop if request time is over 0.3sec, send the request maximum 2 times
             if interval > 0.06 * flag and flag < 3:
-                self.transfer(header, data)
+                self._transfer(header, data)
                 flag += 1
             elif interval > 0.3:
                 break
@@ -1296,7 +1255,7 @@ class CoDrone:
         data.commandType = CommandType.LinkModeBroadcast
         data.option = modeLinkBroadcast.value
 
-        return self.transfer(header, data)
+        return self._transfer(header, data)
 
     def sendLinkSystemReset(self):
 
@@ -1310,7 +1269,7 @@ class CoDrone:
         data.commandType = CommandType.LinkSystemReset
         data.option = 0
 
-        return self.transfer(header, data)
+        return self._transfer(header, data)
 
     def sendLinkDiscoverStart(self):
 
@@ -1324,7 +1283,7 @@ class CoDrone:
         data.commandType = CommandType.LinkDiscoverStart
         data.option = 0
 
-        return self.transfer(header, data)
+        return self._transfer(header, data)
 
     def sendLinkDiscoverStop(self):
 
@@ -1338,7 +1297,7 @@ class CoDrone:
         data.commandType = CommandType.LinkDiscoverStop
         data.option = 0
 
-        return self.transfer(header, data)
+        return self._transfer(header, data)
 
     def sendLinkConnect(self, index):
 
@@ -1355,7 +1314,7 @@ class CoDrone:
         data.commandType = CommandType.LinkConnect
         data.option = index
 
-        return self.transfer(header, data)
+        return self._transfer(header, data)
 
     def sendLinkDisconnect(self):
 
@@ -1369,7 +1328,7 @@ class CoDrone:
         data.commandType = CommandType.LinkDisconnect
         data.option = 0
 
-        return self.transfer(header, data)
+        return self._transfer(header, data)
 
     def sendLinkRssiPollingStart(self):
 
@@ -1383,7 +1342,7 @@ class CoDrone:
         data.commandType = CommandType.LinkRssiPollingStart
         data.option = 0
 
-        return self.transfer(header, data)
+        return self._transfer(header, data)
 
     def sendLinkRssiPollingStop(self):
 
@@ -1397,7 +1356,32 @@ class CoDrone:
         data.commandType = CommandType.LinkRssiPollingStop
         data.option = 0
 
-        return self.transfer(header, data)
+        return self._transfer(header, data)
 
     ### LINK -------- END
 
+
+    def setEventHandler(self, dataType, eventHandler):
+        if (not isinstance(dataType, DataType)):
+            return
+
+        self._eventHandler.d[dataType] = eventHandler
+
+    def getHeader(self, dataType):
+        if (not isinstance(dataType, DataType)):
+            return None
+
+        return self._storageHeader.d[dataType]
+
+    def getData(self, dataType):
+        if (not isinstance(dataType, DataType)):
+            return None
+
+        return self._storage.d[dataType]
+
+    def getCount(self, dataType):
+
+        if (not isinstance(dataType, DataType)):
+            return None
+
+        return self._storageCount.d[dataType]
