@@ -24,7 +24,7 @@ class Timer:
         self.pressure = [3, 0]
         self.trim = [0, 0]
         self.range = [0, 0]
-        self.state = [0, 0]
+        self.state = [0.1, 0]
         self.imageFlow = [0, 0]
 
         # Event states flag

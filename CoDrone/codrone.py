@@ -1158,10 +1158,131 @@ class CoDrone:
     ### LEDS --------- END
 
 
+    ### FLIGHT SEQUENCES -------- START
+    ## TEST
+
+    def flySequence(self, sequence):
+        if sequence == DroneSequence.Square:
+            self.flySquare()
+        elif sequence == DroneSequence.Circle:
+            self.flyCircle()
+        elif sequence == DroneSequence.Spiral:
+            self.flySpiral()
+        elif sequence == DroneSequence.Triangle:
+            self.flyTriangle()
+        elif sequence == DroneSequence.Hop:
+            self.flyHop()
+        elif sequence == DroneSequence.Sway:
+            self.flySway()
+        elif sequence == DroneSequence.Zigzag:
+            self.flyZigzag()
+        else:
+            return None
+
+    def flyRoulette(self):
+        if self.getState() != ModeFlight.Flight:
+            self.takeoff()
+
+        self.turn(Direction.Right, 5 + (self.timeStartProgram % 5), 30)
+        self.go(Direction.Forward, 1)
+
+        self.hover(self._controlSleep)
+
+    def turtleTurn(self):
+        self.go(Direction.Left, 1, 100)
+
+    def flySquare(self):
+        if self.getState() != ModeFlight.Flight:
+            self.takeoff()
+
+        self.go(Direction.Right, 1, 50)
+        self.go(Direction.Forward, 1, 50)
+        self.go(Direction.Left, 1, 50)
+        self.go(Direction.Backward, 1, 50)
+
+        self.hover(self._controlSleep)
+
+    def flyCircle(self):
+        if self.getState() != ModeFlight.Flight:
+            self.takeoff()
+
+        power = -50
+        yaw = self.getAngularSpeed().Yaw
+        degree = -360 + yaw
+
+        startTime = time.time()
+        while (time.time() - startTime) < 15:
+            if abs(yaw - self._data.attitude.Yaw) > 180:
+                degree += 360
+            yaw = self._data.attitude.Yaw
+            if degree < yaw:
+                self.sendControl(10, 0, power, 0)
+                sleep(0.1)
+            else:
+                break
+
+        self.hover(self._controlSleep)
+
+    def flySpiral(self):
+        if self.getState() != ModeFlight.Flight:
+            self.takeoff()
+
+        for i in range(5):
+            self.sendControl(10, 0, -50, -i * 2)
+            sleep(1)
+
+        self.hover(self._controlSleep)
+
+    def flyTriangle(self):
+        if self.getState() != ModeFlight.Flight:
+            self.takeoff()
+
+        self.turnDegree(Direction.Right, Degree.ANGLE_30)
+        self.hover(3)
+        self.go(Direction.Forward, 1)
+        self.turnDegree(Direction.Left, Degree.ANGLE_120)
+        self.go(Direction.Forward, 1)
+        self.turnDegree(Direction.Left, Degree.ANGLE_120)
+        self.go(Direction.Forward, 1)
+
+        self.hover(self._controlSleep)
+
+    def flyHop(self):
+        if self.getState() != ModeFlight.Flight:
+            self.takeoff()
+
+        self.sendControlDuration(0, 30, 0, 50, 1)
+        self.sendControlDuration(0, 30, 0, -50, 1)
+
+        self.hover(self._controlSleep)
+
+    def flySway(self):
+        if self.getState() != ModeFlight.Flight:
+            self.takeoff()
+
+        for i in range(2):
+            self.go(Direction.Left, 1, 50)
+            self.go(Direction.Right, 1, 50)
+
+        self.hover(self._controlSleep)
+
+    def flyZigzag(self):
+        if self.getState() != ModeFlight.Flight:
+            self.takeoff()
+            print("wow")
+
+        for i in range(2):
+            self.move(1, 50, 50, 0, 0)
+            self.move(1, -50, 50, 0, 0)
+
+        self.hover(self._controlSleep)
+
+    ### FLIGHT SEQUENCES -------- END
+
+
     ### Link -------- Start
 
     def sendLinkModeBroadcast(self, modeLinkBroadcast):
-
         if (not isinstance(modeLinkBroadcast, ModeLinkBroadcast)):
             return None
 

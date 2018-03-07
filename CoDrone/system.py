@@ -178,6 +178,7 @@ class FlightEvent(Enum):
     Reverse = 0x08  # upside down
     Shot = 0x09     # shoot IR missile
     UnderAttack = 0x0A  # be hitted by IR missile
+
     EndOfType = 0x0B
 
 
@@ -190,9 +191,21 @@ class DriveEvent(Enum):
 
     EndOfType = 0x04
 
-"""
-User Only
-"""
+
+class DroneSequence(Enum):
+    None_ = 0x00
+
+    Square = 0x01
+    Circle = 0x02
+    Spiral = 0x03
+    Triangle = 0x04
+    Hop = 0x05
+    Sway = 0x06
+    Zigzag = 0x07
+
+    EndOfType = 0x08
+
+
 class Degree(Enum):
     ANGLE_30 = 30
     ANGLE_45 = 45
@@ -202,6 +215,7 @@ class Degree(Enum):
     ANGLE_135 = 135
     ANGLE_150 = 150
     ANGLE_180 = 180
+
 
 class Direction(Enum):
     None_ = 0x00

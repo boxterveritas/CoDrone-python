@@ -298,9 +298,9 @@ def testCircle(drone):
     yaw = drone.getAngularSpeed().Yaw
     degree = -360 + yaw
 
-    start_time = time.time()
+    startTime = time.time()
     drone.sendControl(5, 0, 0, 0)
-    while (start_time - time.time()) < 15:
+    while (time.time() - startTime) < 15:
         if abs(yaw - drone._data.attitude.Yaw) > 180:
             degree += 360
         yaw = drone._data.attitude.Yaw
@@ -405,7 +405,7 @@ def testDrone():
         print("?")
 
     drone.takeoff()
-
+    drone.land()
     drone.sendLinkDisconnect()
     sleep(3)
     drone.close()
