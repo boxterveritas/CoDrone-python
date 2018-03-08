@@ -170,10 +170,10 @@ def testGo(drone):
     print("---- START Go Test")
 
     print("go left for 2 sec")
-    drone.go(Direction.Left, 2, 20)
+    drone.go(Direction.LEFT, 2, 20)
 
     print("go right for 2 sec")
-    drone.go(Direction.Right, 2, 20)
+    drone.go(Direction.RIGHT, 2, 20)
 
     print("go up for 2 sec")
     drone.go(Direction.Up, 2, 50)
@@ -277,8 +277,8 @@ def testBatteryLow(drone):
 
     drone.takeoff()
     while drone.getBatteryPercentage() > 50:
-        drone.go(Direction.Left,1,70)
-        drone.go(Direction.Right,1, 30)
+        drone.go(Direction.LEFT, 1, 70)
+        drone.go(Direction.RIGHT, 1, 30)
         print(drone.getBatteryPercentage())
 
     sleep(1)
@@ -323,7 +323,7 @@ def testL(drone):
     drone.takeoff()
 
     drone.go(Direction.Forward, 2,30)
-    drone.turnDegree(Direction.Right, Degree.ANGLE_90)
+    drone.turnDegree(Direction.RIGHT, Degree.ANGLE_90)
     drone.go(Direction.Forward, 2,30)
 
     drone.land()
@@ -336,9 +336,9 @@ def testL(drone):
 def testSquare(drone):
     drone.takeoff()
 
-    drone.go(Direction.Right, 2,30)
+    drone.go(Direction.RIGHT, 2, 30)
     drone.go(Direction.Forward, 2,30)
-    drone.go(Direction.Left, 2,30)
+    drone.go(Direction.LEFT, 2, 30)
     drone.go(Direction.Backward, 2,30)
 
     drone.land()
@@ -385,12 +385,12 @@ def testHeight(drone):
 
 def testTurn(drone):
     drone.takeoff()
-    drone.turnDegree(Direction.Right, Degree.ANGLE_30)
+    drone.turnDegree(Direction.RIGHT, Degree.ANGLE_30)
     drone.hover(3)
     drone.go(Direction.Forward, 1)
-    drone.turnDegree(Direction.Left, Degree.ANGLE_120)
+    drone.turnDegree(Direction.LEFT, Degree.ANGLE_120)
     drone.go(Direction.Forward, 1)
-    drone.turnDegree(Direction.Left, Degree.ANGLE_120)
+    drone.turnDegree(Direction.LEFT, Degree.ANGLE_120)
     drone.go(Direction.Forward, 1)
 
     sleep(1)

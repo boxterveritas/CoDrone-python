@@ -195,13 +195,13 @@ class DriveEvent(Enum):
 class DroneSequence(Enum):
     None_ = 0x00
 
-    Square = 0x01
-    Circle = 0x02
-    Spiral = 0x03
-    Triangle = 0x04
-    Hop = 0x05
-    Sway = 0x06
-    Zigzag = 0x07
+    SQUARE = 0x01
+    CIRCLE = 0x02
+    SPIRAL = 0x03
+    TRIANGLE = 0x04
+    HOP = 0x05
+    SWAY = 0x06
+    ZIGZAG = 0x07
 
     EndOfType = 0x08
 
@@ -220,12 +220,12 @@ class Degree(Enum):
 class Direction(Enum):
     None_ = 0x00
 
-    Left = 0x01
-    Front = 0x02
-    Right = 0x03
-    Rear = 0x04
-    Top = 0x05
-    Bottom = 0x06
+    LEFT = 0x01
+    FRONT = 0x02
+    RIGHT = 0x03
+    REAR = 0x04
+    TOP = 0x05
+    BOTTOM = 0x06
 
     EndOfType = 0x07
 

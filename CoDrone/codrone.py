@@ -356,8 +356,8 @@ class CoDrone:
         if self.isOpen():
             self._printLog("Closing serial port.")
 
-        if self._threadReceving is not None:
-            self._threadReceving.join()
+        if self._threadReceiving is not None:
+            self._threadReceiving.join()
 
         if self._threadSendState is not None:
             self._threadSendState.join()
@@ -381,7 +381,7 @@ class CoDrone:
         # if not connect with serial port print error and return
         if not self.isOpen():
             # print error
-            self._printError("Could not connect to PETRONE LINK.")
+            self._printError(">> Could not connect to serial port.")
             return False
 
         # system reset
@@ -393,89 +393,95 @@ class CoDrone:
         self.sendLinkModeBroadcast(ModeLinkBroadcast.Passive)
         sleep(0.1)
 
-        # start searching device
-        self._devices.clear()
-        self._flagDiscover = True
-        self.sendLinkDiscoverStart()
+        for i in range(5):
+            # start searching device
+            self._devices.clear()
+            self._flagDiscover = True
+            self.sendLinkDiscoverStart()
 
-        # wait for 5sec
-        for i in range(50):
-            sleep(0.1)
-            if not self._flagDiscover:
-                break
+            # wait for 5sec
+            for i in range(50):
+                sleep(0.1)
+                if not self._flagDiscover:
+                    break
 
-        sleep(2)
+            sleep(2)
 
-        length = len(self._devices)
+            length = len(self._devices)
 
-        if eq(deviceName, "None"):
-            # If not specify a name, connect to the nearest device
-            if length > 0:
-                closestDevice = self._devices[0]
+            if eq(deviceName, "None"):
+                # If not specify a name, connect to the nearest device
+                if length > 0:
+                    closestDevice = self._devices[0]
 
-                # If more than two device is found, select the closest device
-                if len(self._devices) > 1:
-                    for i in range(len(self._devices)):
-                        if closestDevice.rssi < self._devices[i].rssi:
-                            closestDevice = self._devices[i]
+                    # If more than two device is found, select the closest device
+                    if len(self._devices) > 1:
+                        for i in range(len(self._devices)):
+                            if closestDevice.rssi < self._devices[i].rssi:
+                                closestDevice = self._devices[i]
 
-                # connect the device
-                self._flagConnected = False
-                self.sendLinkConnect(closestDevice.index)
+                    # connect the device
+                    self._flagConnected = False
+                    self.sendLinkConnect(closestDevice.index)
 
-                # wait for 5 seconds to connect the device
-                for i in range(50):
-                    sleep(0.1)
-                    if self._flagConnected:
-                        break
-                sleep(1.2)
-
-            else:
-                self._printError("Could not find PETRONE.")
-
-        else:
-            # check the name of connected device
-            targetDevice = None
-
-            if (len(self._devices) > 0):
-                if (len(deviceName) == 12):
-                    for i in range(len(self._devices)):
-
-                        if (len(self._devices[i].name) > 12) and (deviceName == self._devices[i].name[0:12]):
-                            targetDevice = self._devices[i]
+                    # wait for 5 seconds to connect the device
+                    for i in range(50):
+                        sleep(0.1)
+                        if self._flagConnected:
                             break
-
-                    if targetDevice != None:
-                        # if find the device, connect the device
-                        self._flagConnected = False
-                        self.sendLinkConnect(targetDevice.index)
-
-                        # wait for 5 seconds to connect the device
-                        for i in range(50):
-                            sleep(0.1)
-                            if self._flagConnected:
-                                break
-
-                        # connect and wait another 1.2 seconds.
-                        sleep(1.2)
-
-                    else:
-                        self._printError("Could not find " + deviceName + ".")
+                    sleep(1.2)
 
                 else:
-                    self._printError("Device name length error(" + deviceName + ").")
+                    self._printError(">> Could not find CODRONE.")
 
             else:
-                self._printError("Could not find PETRONE.")
+                # check the name of connected device
+                targetDevice = None
 
-        ## TO DO
-        ## How to alert low battery
-        if self._flagConnected:
-            battery = self.getBatteryPercentage()
-            print("Drone battery : [{}]".format(battery))
-            if battery < self._lowBatteryPercent:
-                print("Low Battery!!")
+                if (len(self._devices) > 0):
+                    if (len(deviceName) == 12):
+                        for i in range(len(self._devices)):
 
+                            if (len(self._devices[i].name) > 12) and (deviceName == self._devices[i].name[0:12]):
+                                targetDevice = self._devices[i]
+                                break
+
+                        if targetDevice != None:
+                            # if find the device, connect the device
+                            self._flagConnected = False
+                            self.sendLinkConnect(targetDevice.index)
+
+                            # wait for 5 seconds to connect the device
+                            for i in range(50):
+                                sleep(0.1)
+                                if self._flagConnected:
+                                    break
+
+                            # connect and wait another 1.2 seconds.
+                            sleep(1.2)
+
+                        else:
+                            self._printError("Could not find " + deviceName + ".")
+
+                    else:
+                        self._printError("Device name length error(" + deviceName + ").")
+
+                else:
+                    self._printError(">> Could not find CODRONE.")
+
+            ## TO DO
+            ## How to alert low battery
+            if self._flagConnected:
+                battery = self.getBatteryPercentage()
+                print(">> Drone battery : [{}]".format(battery))
+                if battery < self._lowBatteryPercent:
+                    print(">> Low Battery!!")
+                sleep(3)
+                return self._flagConnected
+            else:
+                self._printError(">> Trying to connect : {}/5".format(i+1))
+                if i == 4:
+                    self._printError(">> Fail to connect")
         return self._flagConnected
 
     ### PUBLIC COMMON -------- END
@@ -548,30 +554,87 @@ class CoDrone:
     ### FLIGHT VARIABLES -------- START
 
     def setRoll(self, power):
+        """
+        This is a setter function that allows you to set the roll variable.
+
+        Args:
+            power: An int from -100(left) to 100(right) that sets the roll variable.
+        """
         self._control.roll = power
 
     def setPitch(self, power):
+        """
+        This is a setter function that allows you to set the pitch variable.
+
+        Args:
+            power: An int from -100(backwards) to 100(forwards) that sets the pitch variable.
+        """
+
         self._control.pitch = power
 
     def setYaw(self, power):
+        """
+        This is a setter function that allows you to set the yaw variable.
+
+        Args:
+            power: An int from -100(counterclockwise) to 100(clockwise) that sets the yaw variable.
+        """
+
         self._control.yaw = power
 
     def setThrottle(self, power):
+        """
+        This is a setter function that allows you to set the throttle variable.
+
+        Args:
+            power: An int from -100(downwards) to 100(upwards) that sets the throttle variable.
+        """
+
         self._control.throttle = power
 
     def getRoll(self):
+        """
+        This is a getter function that gets the value of the roll variable.
+
+        Returns: The power of the roll variable (int)
+        """
+
         return self._control.roll
 
     def getPitch(self):
+        """
+        This is a getter function that gets the value of the pitch variable.
+
+        Returns: The power of the pitch variable (int)
+        """
         return self._control.pitch
 
     def getYaw(self):
+        """
+        This is a getter function that gets the value of the yaw variable.
+
+        Returns: The power of the yaw variable(int)
+        """
         return self._control.yaw
 
     def getThrottle(self):
+        """
+        This is a getter function that gets the value of the throttle variable.
+
+        Returns: The power of the throttle variable(int)
+        """
         return self._control.throttle
 
     def trim(self, roll, pitch, yaw, throttle):
+        """
+        This is a setter function that allows you to set the trim of the drone if it's drifting.
+
+        Args:
+            roll: An int from -100(left) to 100(right) that sets the roll trim.
+            pitch: An int from -100(backward) to 100(forward) that sets the pitch trim.
+            yaw: An int from -100(counterclockwise) to 100(clockwise) that sets the yaw trim.
+            throttle: An int from -100(downward) to 100(upward) that sets the throttle trim.
+        """
         header = Header()
 
         header.dataType = DataType.TrimFlight
@@ -583,6 +646,14 @@ class CoDrone:
         self._transfer(header, data)
 
     def resetTrim(self, power):
+        """
+        This is a setter function that allows you to set the throttle variable.
+
+        Args:
+            power: An int from -100 to 100 that sets the throttle variable.
+            The number represents the direction and power of the output for that flight motion variable.
+            Negative throttle descends, positive throttle ascends.
+        """
         header = Header()
 
         header.dataType = DataType.TrimFlight
@@ -687,14 +758,14 @@ class CoDrone:
     def go(self, direction, duration=0.5, power=50):
         # string matching : forward/backward , right/left, up/down
         pitch = ((direction == Direction.Forward) - (direction == Direction.Backward)) * power
-        roll = ((direction == Direction.Right) - (direction == Direction.Left)) * power
+        roll = ((direction == Direction.RIGHT) - (direction == Direction.LEFT)) * power
         yaw = 0
         throttle = ((direction == Direction.Up) - (direction == Direction.Down)) * power
 
         self.sendControlDuration(roll, pitch, yaw, throttle, duration)
 
     def turn(self, direction, duration=None, power=50):
-        yaw = ((direction == Direction.Right) - (direction == Direction.Left)) * power
+        yaw = ((direction == Direction.RIGHT) - (direction == Direction.LEFT)) * power
         if duration is None:
             self.sendControl(0, 0, yaw, 0)
         else:
@@ -709,7 +780,7 @@ class CoDrone:
         bias = 3
 
         yawPast = self.getAngularSpeed().Yaw
-        direction = ((direction == Direction.Right) - (direction == Direction.Left))  # right = 1 / left = -1
+        direction = ((direction == Direction.RIGHT) - (direction == Direction.LEFT))  # right = 1 / left = -1
         degreeGoal = direction * (degree.value - bias) + yawPast
 
         start_time = time.time()
@@ -1121,19 +1192,19 @@ class CoDrone:
     ## TEST
 
     def flySequence(self, sequence):
-        if sequence == DroneSequence.Square:
+        if sequence == DroneSequence.SQUARE:
             self.flySquare()
-        elif sequence == DroneSequence.Circle:
+        elif sequence == DroneSequence.CIRCLE:
             self.flyCircle()
-        elif sequence == DroneSequence.Spiral:
+        elif sequence == DroneSequence.SPIRAL:
             self.flySpiral()
-        elif sequence == DroneSequence.Triangle:
+        elif sequence == DroneSequence.TRIANGLE:
             self.flyTriangle()
-        elif sequence == DroneSequence.Hop:
+        elif sequence == DroneSequence.HOP:
             self.flyHop()
-        elif sequence == DroneSequence.Sway:
+        elif sequence == DroneSequence.SWAY:
             self.flySway()
-        elif sequence == DroneSequence.Zigzag:
+        elif sequence == DroneSequence.ZIGZAG:
             self.flyZigzag()
         else:
             return None
@@ -1142,21 +1213,21 @@ class CoDrone:
         if self.getState() != ModeFlight.Flight:
             self.takeoff()
 
-        self.turn(Direction.Right, 5 + (self.timeStartProgram % 5), 30)
+        self.turn(Direction.RIGHT, 5 + (self.timeStartProgram % 5), 30)
         self.go(Direction.Forward, 1)
 
         self.hover(self._controlSleep)
 
     def turtleTurn(self):
-        self.go(Direction.Left, 1, 100)
+        self.go(Direction.LEFT, 1, 100)
 
     def flySquare(self):
         if self.getState() != ModeFlight.Flight:
             self.takeoff()
 
-        self.go(Direction.Right, 1, 50)
+        self.go(Direction.RIGHT, 1, 50)
         self.go(Direction.Forward, 1, 50)
-        self.go(Direction.Left, 1, 50)
+        self.go(Direction.LEFT, 1, 50)
         self.go(Direction.Backward, 1, 50)
 
         self.hover(self._controlSleep)
@@ -1196,12 +1267,12 @@ class CoDrone:
         if self.getState() != ModeFlight.Flight:
             self.takeoff()
 
-        self.turnDegree(Direction.Right, Degree.ANGLE_30)
+        self.turnDegree(Direction.RIGHT, Degree.ANGLE_30)
         self.hover(3)
         self.go(Direction.Forward, 1)
-        self.turnDegree(Direction.Left, Degree.ANGLE_120)
+        self.turnDegree(Direction.LEFT, Degree.ANGLE_120)
         self.go(Direction.Forward, 1)
-        self.turnDegree(Direction.Left, Degree.ANGLE_120)
+        self.turnDegree(Direction.LEFT, Degree.ANGLE_120)
         self.go(Direction.Forward, 1)
 
         self.hover(self._controlSleep)
@@ -1220,8 +1291,8 @@ class CoDrone:
             self.takeoff()
 
         for i in range(2):
-            self.go(Direction.Left, 1, 50)
-            self.go(Direction.Right, 1, 50)
+            self.go(Direction.LEFT, 1, 50)
+            self.go(Direction.RIGHT, 1, 50)
 
         self.hover(self._controlSleep)
 
