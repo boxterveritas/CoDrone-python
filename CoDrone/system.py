@@ -226,14 +226,13 @@ class Direction(Enum):
     REAR = 0x04
     TOP = 0x05
     BOTTOM = 0x06
+    UP = 0x07
+    DOWN = 0x08
+    FORWARD = 0x09
+    BACKWARD = 0x0A
 
-    EndOfType = 0x07
+    EndOfType = 0x0B
 
-    #User Only
-    Up = 0x08
-    Down = 0x09
-    Forward = 0x0A
-    Backward = 0x0B
 
 class SensorOrientation(Enum):
     None_ = 0x00

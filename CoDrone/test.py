@@ -176,10 +176,10 @@ def testGo(drone):
     drone.go(Direction.RIGHT, 2, 20)
 
     print("go up for 2 sec")
-    drone.go(Direction.Up, 2, 50)
+    drone.go(Direction.UP, 2, 50)
 
     print("go down for 2 sec")
-    drone.go(Direction.Down, 2, 50)
+    drone.go(Direction.DOWN, 2, 50)
 
     print(drone.getRoll(), drone.getPitch(), drone.getYaw(), drone.getThrottle())
 
@@ -237,10 +237,10 @@ read the height from the table.
 """
 def testGetHeight(drone):
     drone.takeoff()
-    drone.go(Direction.Up, 1, 30)
+    drone.go(Direction.UP, 1, 30)
     sleep(1)
     print("ground height :" , drone.getHeight())
-    drone.go(Direction.Forward, 1)
+    drone.go(Direction.FORWARD, 1)
     sleep(2)
     print("table height :" , drone.getHeight())
     print("table height :", drone.getHeight())
@@ -322,9 +322,9 @@ def testCircle(drone):
 def testL(drone):
     drone.takeoff()
 
-    drone.go(Direction.Forward, 2,30)
+    drone.go(Direction.FORWARD, 2, 30)
     drone.turnDegree(Direction.RIGHT, Degree.ANGLE_90)
-    drone.go(Direction.Forward, 2,30)
+    drone.go(Direction.FORWARD, 2, 30)
 
     drone.land()
     sleep(3)
@@ -337,9 +337,9 @@ def testSquare(drone):
     drone.takeoff()
 
     drone.go(Direction.RIGHT, 2, 30)
-    drone.go(Direction.Forward, 2,30)
+    drone.go(Direction.FORWARD, 2, 30)
     drone.go(Direction.LEFT, 2, 30)
-    drone.go(Direction.Backward, 2,30)
+    drone.go(Direction.BACKWARD, 2, 30)
 
     drone.land()
     sleep(3)
@@ -373,11 +373,11 @@ def testHeight(drone):
     drone.takeoff()
 
     print(500)
-    drone.go(Direction.Forward, 1, 50)
+    drone.go(Direction.FORWARD, 1, 50)
     drone.goToHeight(500)
     sleep(1)
     print(1000)
-    drone.go(Direction.Forward, 1, 50)
+    drone.go(Direction.FORWARD, 1, 50)
     drone.goToHeight(1000)
     sleep(5)
     drone.land()
@@ -387,11 +387,11 @@ def testTurn(drone):
     drone.takeoff()
     drone.turnDegree(Direction.RIGHT, Degree.ANGLE_30)
     drone.hover(3)
-    drone.go(Direction.Forward, 1)
+    drone.go(Direction.FORWARD, 1)
     drone.turnDegree(Direction.LEFT, Degree.ANGLE_120)
-    drone.go(Direction.Forward, 1)
+    drone.go(Direction.FORWARD, 1)
     drone.turnDegree(Direction.LEFT, Degree.ANGLE_120)
-    drone.go(Direction.Forward, 1)
+    drone.go(Direction.FORWARD, 1)
 
     sleep(1)
     drone.land()

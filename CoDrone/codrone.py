@@ -439,10 +439,9 @@ class CoDrone:
                 targetDevice = None
 
                 if (len(self._devices) > 0):
-                    if (len(deviceName) == 12):
+                    if (len(deviceName) == 4):
                         for i in range(len(self._devices)):
-
-                            if (len(self._devices[i].name) > 12) and (deviceName == self._devices[i].name[0:12]):
+                            if (len(self._devices[i].name) > 12) and (deviceName == self._devices[i].name[8:12]):
                                 targetDevice = self._devices[i]
                                 break
 
@@ -461,10 +460,10 @@ class CoDrone:
                             sleep(1.2)
 
                         else:
-                            self._printError("Could not find " + deviceName + ".")
+                            self._printError(">> Could not find " + deviceName + ".")
 
                     else:
-                        self._printError("Device name length error(" + deviceName + ").")
+                        self._printError(">> Device name length error(" + deviceName + ").")
 
                 else:
                     self._printError(">> Could not find CODRONE.")
@@ -481,7 +480,7 @@ class CoDrone:
             else:
                 self._printError(">> Trying to connect : {}/5".format(i+1))
                 if i == 4:
-                    self._printError(">> Fail to connect")
+                    self._printError(">> Fail to connect.")
         return self._flagConnected
 
     ### PUBLIC COMMON -------- END
@@ -554,8 +553,7 @@ class CoDrone:
     ### FLIGHT VARIABLES -------- START
 
     def setRoll(self, power):
-        """
-        This is a setter function that allows you to set the roll variable.
+        """This is a setter function that allows you to set the roll variable.
 
         Args:
             power: An int from -100(left) to 100(right) that sets the roll variable.
@@ -563,8 +561,7 @@ class CoDrone:
         self._control.roll = power
 
     def setPitch(self, power):
-        """
-        This is a setter function that allows you to set the pitch variable.
+        """This is a setter function that allows you to set the pitch variable.
 
         Args:
             power: An int from -100(backwards) to 100(forwards) that sets the pitch variable.
@@ -573,8 +570,7 @@ class CoDrone:
         self._control.pitch = power
 
     def setYaw(self, power):
-        """
-        This is a setter function that allows you to set the yaw variable.
+        """This is a setter function that allows you to set the yaw variable.
 
         Args:
             power: An int from -100(counterclockwise) to 100(clockwise) that sets the yaw variable.
@@ -583,8 +579,7 @@ class CoDrone:
         self._control.yaw = power
 
     def setThrottle(self, power):
-        """
-        This is a setter function that allows you to set the throttle variable.
+        """This is a setter function that allows you to set the throttle variable.
 
         Args:
             power: An int from -100(downwards) to 100(upwards) that sets the throttle variable.
@@ -593,8 +588,7 @@ class CoDrone:
         self._control.throttle = power
 
     def getRoll(self):
-        """
-        This is a getter function that gets the value of the roll variable.
+        """This is a getter function that gets the value of the roll variable.
 
         Returns: The power of the roll variable (int)
         """
@@ -602,32 +596,28 @@ class CoDrone:
         return self._control.roll
 
     def getPitch(self):
-        """
-        This is a getter function that gets the value of the pitch variable.
+        """This is a getter function that gets the value of the pitch variable.
 
         Returns: The power of the pitch variable (int)
         """
         return self._control.pitch
 
     def getYaw(self):
-        """
-        This is a getter function that gets the value of the yaw variable.
+        """This is a getter function that gets the value of the yaw variable.
 
         Returns: The power of the yaw variable(int)
         """
         return self._control.yaw
 
     def getThrottle(self):
-        """
-        This is a getter function that gets the value of the throttle variable.
+        """This is a getter function that gets the value of the throttle variable.
 
         Returns: The power of the throttle variable(int)
         """
         return self._control.throttle
 
     def trim(self, roll, pitch, yaw, throttle):
-        """
-        This is a setter function that allows you to set the trim of the drone if it's drifting.
+        """This is a setter function that allows you to set the trim of the drone if it's drifting.
 
         Args:
             roll: An int from -100(left) to 100(right) that sets the roll trim.
@@ -646,8 +636,7 @@ class CoDrone:
         self._transfer(header, data)
 
     def resetTrim(self, power):
-        """
-        This is a setter function that allows you to set the throttle variable.
+        """This is a setter function that allows you to set the throttle variable.
 
         Args:
             power: An int from -100 to 100 that sets the throttle variable.
@@ -670,6 +659,10 @@ class CoDrone:
     ### FLIGHT COMMANDS (START/STOP) -------- START
 
     def takeoff(self):
+        """This function makes the drone take off and begin hovering.
+        The drone will always hover for 3 seconds in order to stabilize before it executes the next command.
+        If it receives no command for 8 seconds, it will automatically land.
+        """
         self._data.takeoffFuncFlag = 1  # Event States
 
         header = Header()
@@ -686,7 +679,10 @@ class CoDrone:
         sleep(3)
 
     def land(self):
-        self._control.setAll(0, 0, 0, 0)
+        """This function makes the drone stop all commands, hovers, and makes a soft landing where it is.
+        The function will also zero-out all of the flight motion variables to 0.
+        """
+        self._control.setAll(0, 0, 0, 0)    # set the flight motion variables to 0.
 
         header = Header()
 
@@ -702,6 +698,11 @@ class CoDrone:
         sleep(self._controlSleep)
 
     def hover(self, duration=0):
+        """This function makes the drone hover for a given amount of time.
+
+        Args:
+            duration: The number of seconds to hover as type float. If 0, the duration is infinity.
+        """
         timeStart = time.time()
         header = Header()
 
@@ -711,18 +712,20 @@ class CoDrone:
         control = Control()
         control.setAll(0, 0, 0, 0)
 
-        while (time.time() - timeStart) < duration:
+        if duration != 0:
+            while (time.time() - timeStart) < duration:
+                self._transfer(header, control)
+                sleep(0.1)
+        else:
             self._transfer(header, control)
-            sleep(0.1)
-
-        self._transfer(header, control)
         sleep(self._controlSleep)
 
     def emergencyStop(self):
-        # Event states
-        self._data.stopFuncFlag = 1
-
-        self._control.setAll(0, 0, 0, 0)
+        """This function immediately stops all commands and stops all motors, so the drone will stop flying immediately.
+        The function will also zero-out all of the flight motion variables to 0.
+        """
+        self._data.stopFuncFlag = 1    # Event states
+        self._control.setAll(0, 0, 0, 0)     # set the flight motion variables to 0
 
         header = Header()
 
@@ -742,29 +745,67 @@ class CoDrone:
     ### FLIGHT COMMANDS (MOVEMENT) -------- START
 
     def move(self, duration=None, roll=None, pitch=None, yaw=None, throttle=None):
-        # move()
-        if duration is None:
+        """Once flying, the drone goes in the direction of the set flight motion variables.
+        If the drone is not flying, nothing will happen.
+        If you provide no parameters or only duration, it will execute it based on the current flight motion variables set.
+        Args:
+            duration: the duration of the flight motion in seconds. If 0, the duration is infinity.
+            roll: the power of the roll, which is an int from -100 to 100
+            pitch: the power of the pitch, which is an int from -100 to 100
+            yaw: the power of the yaw, which is an int from -100 to 100
+            throttle: the power of the throttle, which is an int from -100 to 100
+
+        Examples:
+            >>> move()  #goes infinity
+            >>> move(3)    #goes for 3 seconds
+            >>> move(3, 0,0,0,50)   #goes upward for 3 seconds at 50% power
+        """
+        if duration is None:    # move()
             self.sendControl(*self._control.getAll())
             sleep(self._controlSleep)
-
-        # move(duration)
-        elif roll is None:
+        elif roll is None:      # move(duration)
             self.sendControlDuration(*self._control.getAll(), duration)
-
-        # move(duration, roll, pitch, yaw, throttle)
-        else:
+        else:                   # move(duration, roll, pitch, yaw, throttle)
             self.sendControlDuration(roll, pitch, yaw, throttle, duration)
 
     def go(self, direction, duration=0.5, power=50):
-        # string matching : forward/backward , right/left, up/down
-        pitch = ((direction == Direction.Forward) - (direction == Direction.Backward)) * power
+        """A simpler Junior level function that represents positive flight with a direction, but with more natural language.
+        It simply flies forward for the given duration and power.
+
+        Args:
+            direction: member values in the Direction enum class which can be one of the following: FORWARD, BACKWARD, LEFT, RIGHT, UP, and DOWN.
+            duration: the duration of the flight motion in seconds.
+                If 0, it will turn right indefinitely. Defaults to 0.5 seconds if not defined.
+            power: the power at which the drone flies. Takes a value from 0 to 100. Defaults to 50 if not defined.
+
+        Examples:
+            >>> go(Direction.FORWARD)   # goes forward for 0.5 seconds at 50% power
+            >>> go(Direction.UP, 3)    # goes up for 3 seconds at 50% power
+            >>> go(Direction.BACKWARD, 3, 30)   # goes backward for 3 seconds at 30% power
+        """
+        # power or -power
+        pitch = ((direction == Direction.FORWARD) - (direction == Direction.BACKWARD)) * power
         roll = ((direction == Direction.RIGHT) - (direction == Direction.LEFT)) * power
         yaw = 0
-        throttle = ((direction == Direction.Up) - (direction == Direction.Down)) * power
+        throttle = ((direction == Direction.UP) - (direction == Direction.DOWN)) * power
 
         self.sendControlDuration(roll, pitch, yaw, throttle, duration)
 
-    def turn(self, direction, duration=None, power=50):
+    def turn(self, direction, duration=0.5, power=50):
+        """A simpler Junior level function that represents yaw, but with more natural language.
+        It simply turns in the given direction, duration and power.
+
+        Args:
+            direction: member values in the Direction enum class which can be one of the following: LEFT, RIGHT
+            duration: the duration of the turn in seconds.
+                If 0, it will turn right indefinitely. Defaults to 0.5 seconds if not defined.
+            power: the power at which the drone turns right. Takes a value from 0 to 100. Defaults to 50 if not defined.
+
+        Examples:
+            >>> turn(Direction.LEFT)    # yaws left for 0.5 sec at 50 power
+            >>> turn(Direction.RIGHT, 3)    # yaws right for 3 seconds at 50 power
+            >>> turn(Direction.RIGHT, 5, 100)   # yaws right for 5 seconds at 100 power
+        """
         yaw = ((direction == Direction.RIGHT) - (direction == Direction.LEFT)) * power
         if duration is None:
             self.sendControl(0, 0, yaw, 0)
@@ -773,6 +814,17 @@ class CoDrone:
 
     @lockState
     def turnDegree(self, direction, degree):
+        """An Senior level function that yaws by a given degree in a given direction.
+        This function takes an input degree in an input direction, and turns until it reaches the given degree.
+
+        Args:
+            direction: member values in the Direction enum class which can be one of the following: LEFT, RIGHT
+            degree: member values in the Degree enum class which can be one of the following:
+                ANGLE_30, ANGLE_45, ANGLE_60, ANGLE_90, ANGLE_120, ANGLE_135, ANGLE_150, ANGLE_180
+
+        Examples:
+            >>> turnDegree(Direction.LEFT, Degree.ANGLE_30)    # turn left 30 degrees
+        """
         if not isinstance(direction, Direction) or not isinstance(degree, Degree):
             return None
 
@@ -802,6 +854,8 @@ class CoDrone:
 
     @lockState
     def rotate180(self):
+        """This function makes the drone rotate 180 degrees.
+        """
         power = 20
         bias = 3
 
@@ -822,6 +876,12 @@ class CoDrone:
 
     @lockState
     def goToHeight(self, height):
+        """This is a setter function will make the drone fly to the given height above the object directly below its IR sensor (usually the ground).
+        It’s effective between 20 and 2000 millimeters.
+        It uses the IR sensor to continuously check for its height.
+
+        height: An int from 20 to 2000 in millimeters.
+        """
         power = 30
         interval = 20  # height - 10 ~ height + 10
 
@@ -1214,7 +1274,7 @@ class CoDrone:
             self.takeoff()
 
         self.turn(Direction.RIGHT, 5 + (self.timeStartProgram % 5), 30)
-        self.go(Direction.Forward, 1)
+        self.go(Direction.FORWARD, 1)
 
         self.hover(self._controlSleep)
 
@@ -1226,9 +1286,9 @@ class CoDrone:
             self.takeoff()
 
         self.go(Direction.RIGHT, 1, 50)
-        self.go(Direction.Forward, 1, 50)
+        self.go(Direction.FORWARD, 1, 50)
         self.go(Direction.LEFT, 1, 50)
-        self.go(Direction.Backward, 1, 50)
+        self.go(Direction.BACKWARD, 1, 50)
 
         self.hover(self._controlSleep)
 
@@ -1269,11 +1329,11 @@ class CoDrone:
 
         self.turnDegree(Direction.RIGHT, Degree.ANGLE_30)
         self.hover(3)
-        self.go(Direction.Forward, 1)
+        self.go(Direction.FORWARD, 1)
         self.turnDegree(Direction.LEFT, Degree.ANGLE_120)
-        self.go(Direction.Forward, 1)
+        self.go(Direction.FORWARD, 1)
         self.turnDegree(Direction.LEFT, Degree.ANGLE_120)
-        self.go(Direction.Forward, 1)
+        self.go(Direction.FORWARD, 1)
 
         self.hover(self._controlSleep)
 
