@@ -83,19 +83,19 @@ def test_goToHeight(drone):
     print("300 -- {}".format(time.time()-start_time))
 
     start_time = time.time()
-    drone.goToHeight(300)
+    drone.goToHeight(500)
     print("500 -- {}".format(time.time() - start_time))
 
     start_time = time.time()
-    drone.goToHeight(300)
+    drone.goToHeight(1000)
     print("1000 -- {}".format(time.time() - start_time))
 
     start_time = time.time()
-    drone.goToHeight(300)
+    drone.goToHeight(1500)
     print("1500 -- {}".format(time.time() - start_time))
 
     start_time = time.time()
-    drone.goToHeight(300)
+    drone.goToHeight(2000)
     print("2000 -- {}".format(time.time() - start_time))
 
 ### SENSORS
@@ -104,11 +104,9 @@ def main_test():
     drone = CoDrone(1,1,1)
 
     drone.connect()
-    drone.takeoff()
-    test_rotate180(drone)
+    #drone.takeoff()
     #test_STARTSTOP(drone)
-    drone.land()
-    drone.sendLinkDisconnect()
+    #drone.land()
     drone.close()
 
 if __name__ == "__main__":

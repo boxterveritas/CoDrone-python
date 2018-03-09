@@ -254,7 +254,7 @@ class CoDrone:
         return dataArray
 
     @lockState
-    def _checkAck(self, header, data, timeOnce=0.06, timeAll=0.3, flagAll=3):
+    def _checkAck(self, header, data, timeOnce=0.02, timeAll=0.2, flagAll=10):
         self._data.ack.dataType = 0
         flag = 1
 
@@ -379,14 +379,18 @@ class CoDrone:
         if self.isOpen():
             self._printLog("Closing serial port.")
 
+        if self._flagThreadRun:
+            self._flagThreadRun = False
+            sleep(0.01)
+
         if self._threadReceiving is not None:
             self._threadReceiving.join()
 
         if self._threadSendState is not None:
             self._threadSendState.join()
 
-        if self._flagThreadRun:
-            self._flagThreadRun = False
+        if self.isConnected():
+            self._flagConnected = self.sendLinkDisconnect()
             sleep(0.01)
 
         while self.isOpen():
@@ -667,7 +671,8 @@ class CoDrone:
         data = TrimFlight()
         data.setAll(roll, pitch, yaw, throttle)
 
-        self._transfer(header, data)
+        if not self._checkAck(header, data):
+            self._printError(">> Failed to trim")
 
     def resetTrim(self, power):
         """This is a setter function that allows you to set the throttle variable.
@@ -685,7 +690,8 @@ class CoDrone:
         data = TrimFlight()
         data.setAll(0, 0, 0, power)
 
-        self._transfer(header, data)
+        if not self._checkAck(header, data):
+            self._printError(">> Failed to reset trim")
 
     ### FLIGHT VARIABLES -------- END
 
@@ -709,7 +715,7 @@ class CoDrone:
         data.commandType = CommandType.FlightEvent
         data.option = FlightEvent.TakeOff.value
 
-        if not self._checkAck(header, data, 0.02, 0.2, 10):
+        if not self._checkAck(header, data):
             self._printError(">> Failed to takeoff")
         sleep(3)
 
@@ -729,7 +735,7 @@ class CoDrone:
         data.commandType = CommandType.FlightEvent
         data.option = FlightEvent.Landing.value
 
-        if not self._checkAck(header, data, 0.02, 0.2, 10):
+        if not self._checkAck(header, data):
             self._printError(">> Failed to land")
         sleep(3)
 
@@ -774,7 +780,7 @@ class CoDrone:
         data.commandType = CommandType.Stop
         data.option = 0
 
-        if not self._checkAck(header, data, 0.02, 0.2, 10):
+        if not self._checkAck(header, data):
             self._printError(">> Failed to emergency stop")
 
     ### FLIGHT COMMANDS (START/STOP) -------- END
@@ -926,14 +932,16 @@ class CoDrone:
         start_time = time.time()
         while time.time() - start_time < 100:
             state = self.getHeight()
-
+            print(height, state)
             differ = height - state
             if differ > interval:   # Up
                 self.sendControl(0, 0, 0, power)
                 sleep(0.1)
+                print("up")
             elif differ < -interval:    # Down
                 self.sendControl(0, 0, 0, -power)
                 sleep(0.1)
+                print("down")
             else:
                 break
 
@@ -1078,7 +1086,7 @@ class CoDrone:
         data.interval = self._LEDInterval
         self._LEDColor = [red, green, blue]
 
-        self._checkAck(header, data)
+        self._checkAck(header, data, 0.06, 0.3, 3)
 
     def setEyeRGB(self, red, green, blue):
         if ((not isinstance(red, int)) or
@@ -1100,7 +1108,7 @@ class CoDrone:
         data.interval = self._LEDInterval
         self._LEDColor = [red, green, blue]
 
-        self._checkAck(header,data)
+        self._checkAck(header,data, 0.06, 0.3, 3)
 
     def setAllRGB(self, red, green, blue):
         if ((not isinstance(red, int)) or
@@ -1124,10 +1132,10 @@ class CoDrone:
         data.interval = self._LEDInterval
         self._LEDColor = [red, green, blue]
 
-        self._checkAck(header, data)
+        self._checkAck(header, data, 0.06, 0.3, 3)
 
         data.mode = self._LEDArmMode
-        self._checkAck(header, data)
+        self._checkAck(header, data, 0.06, 0.3, 3)
 
     def setArmDefaultRGB(self, red, green, blue):
         if ((not isinstance(red, int)) or
@@ -1148,7 +1156,7 @@ class CoDrone:
         data.color.b = blue
         data.interval = self._LEDInterval
 
-        self._checkAck(header, data)
+        self._checkAck(header, data, 0.06, 0.3, 3)
 
     def setEyeDefaultRGB(self, red, green, blue):
         if ((not isinstance(red, int)) or
@@ -1169,7 +1177,7 @@ class CoDrone:
         data.color.b = blue
         data.interval = self._LEDInterval
 
-        self._checkAck(header, data)
+        self._checkAck(header, data, 0.06, 0.3, 3)
 
     def resetDefaultLED(self):
         header = Header()
@@ -1184,10 +1192,10 @@ class CoDrone:
         data.color.b = 0
         data.interval = self._LEDInterval
 
-        self._checkAck(header, data)
+        self._checkAck(header, data, 0.06, 0.3, 3)
 
         data.mode = LightModeDrone.ArmHold
-        self._checkAck(header, data)
+        self._checkAck(header, data, 0.06, 0.3, 3)
 
     def setEyeMode(self, mode):
         # EYE doesn't have flow mode
@@ -1207,7 +1215,7 @@ class CoDrone:
         data.color.r, data.color.g, data.color.b = self._LEDColor
         data.interval = self._LEDInterval
 
-        return self._checkAck(header, data)
+        return self._checkAck(header, data, 0.06, 0.3, 3)
 
     def setArmMode(self, mode):
         if not isinstance(mode, Mode):
@@ -1226,7 +1234,7 @@ class CoDrone:
         data.color.r, data.color.g, data.color.b = self._LEDColor
         data.interval = self._LEDInterval
 
-        self._checkAck(header, data)
+        self._checkAck(header, data, 0.06, 0.3, 3)
 
     def setEyeDefaultMode(self, mode):
         # EYE doesn't have flow mode
@@ -1245,7 +1253,7 @@ class CoDrone:
         data.color.r, data.color.g, data.color.b = self._LEDColor
         data.interval = self._LEDInterval
 
-        self._checkAck(header, data)
+        self._checkAck(header, data, 0.06, 0.3, 3)
 
     def setArmDefaultMode(self, mode):
         if not isinstance(mode, Mode):
@@ -1263,7 +1271,7 @@ class CoDrone:
         data.color.r, data.color.g, data.color.b = self._LEDColor
         data.interval = self._LEDInterval
 
-        self._checkAck(header, data)
+        self._checkAck(header, data, 0.06, 0.3, 3)
 
     ### LEDS --------- END
 
@@ -1405,7 +1413,7 @@ class CoDrone:
         data.commandType = CommandType.LinkModeBroadcast
         data.option = modeLinkBroadcast.value
 
-        return self._transfer(header, data)
+        return self._checkAck(header, data)
 
     def sendLinkSystemReset(self):
 
@@ -1419,7 +1427,7 @@ class CoDrone:
         data.commandType = CommandType.LinkSystemReset
         data.option = 0
 
-        return self._transfer(header, data)
+        return self._checkAck(header, data)
 
     def sendLinkDiscoverStart(self):
 
@@ -1433,7 +1441,7 @@ class CoDrone:
         data.commandType = CommandType.LinkDiscoverStart
         data.option = 0
 
-        return self._transfer(header, data)
+        return self._checkAck(header, data)
 
     def sendLinkDiscoverStop(self):
 
@@ -1447,7 +1455,7 @@ class CoDrone:
         data.commandType = CommandType.LinkDiscoverStop
         data.option = 0
 
-        return self._transfer(header, data)
+        return self._checkAck(header, data)
 
     def sendLinkConnect(self, index):
 
@@ -1464,7 +1472,7 @@ class CoDrone:
         data.commandType = CommandType.LinkConnect
         data.option = index
 
-        return self._transfer(header, data)
+        return self._checkAck(header, data)
 
     def sendLinkDisconnect(self):
 
@@ -1478,7 +1486,7 @@ class CoDrone:
         data.commandType = CommandType.LinkDisconnect
         data.option = 0
 
-        return self._transfer(header, data)
+        return self._checkAck(header, data)
 
     def sendLinkRssiPollingStart(self):
 
