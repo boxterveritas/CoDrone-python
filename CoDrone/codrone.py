@@ -435,9 +435,9 @@ class CoDrone:
             self._flagThreadRun = False
             sleep(0.01)
 
-        while self.isConnected():
-            self._flagConnected = self.sendLinkDisconnect()
-            sleep(0.01)
+        if self.isConnected():
+            self.sendLinkDisconnect()
+            sleep(0.02)
 
         while self.isOpen():
             self._serialport.close()
@@ -606,7 +606,7 @@ class CoDrone:
         data = Request()
 
         data.dataType = dataType
-        return self._checkAck(header,data)
+        return self._transfer(header,data)
 
     @lockState
     def sendControl(self, roll, pitch, yaw, throttle):
@@ -628,7 +628,17 @@ class CoDrone:
         control = Control()
         control.setAll(roll, pitch, yaw, throttle)
 
-        return self._checkAck(header, control)
+        timeStart = time.time()
+
+        receivingFlag = self._storageCount.d[DataType.Attitude]
+
+        while (time.time() - timeStart) < 0.2:
+            self._transfer(header, control)
+            sleep(0.02)
+            if self._storageCount.d[DataType.Attitude] > receivingFlag:
+                break
+        if self._storageCount.d[DataType.Attitude] == receivingFlag:
+            self._printError(">> Failed to send control.")
 
     @lockState
     def sendControlDuration(self, roll, pitch, yaw, throttle, duration):
@@ -1009,16 +1019,13 @@ class CoDrone:
         start_time = time.time()
         while time.time() - start_time < 100:
             state = self.getHeight()
-            print(height, state)
             differ = height - state
             if differ > interval:   # Up
                 self.sendControl(0, 0, 0, power)
                 sleep(0.1)
-                print("up")
             elif differ < -interval:    # Down
                 self.sendControl(0, 0, 0, -power)
                 sleep(0.1)
-                print("down")
             else:
                 break
 
@@ -1045,14 +1052,25 @@ class CoDrone:
                 return False
 
         header = Header()
-
         header.dataType = DataType.Request
         header.length = Request.getSize()
 
         data = Request()
-
         data.dataType = dataType
-        return self._checkAck(header,data, 0.03, 0.15, 3)
+
+        # Break the loop if request time is over 0.15sec, send the request maximum 2 times
+        receivingFlag = self._storageCount.d[dataType]
+        resendFlag = 1
+        self._transfer(header, data)
+        while self._storageCount.d[dataType] == receivingFlag:
+            interval = time.time() - timeStart
+            if interval > 0.03 * resendFlag and resendFlag < 3:
+                self._transfer(header, data)
+                resendFlag += 1
+            elif interval > 0.15:
+                break
+            sleep(0.01)
+        return self._storageCount.d[dataType] > receivingFlag
 
     def getHeight(self):
         """This is a getter function gets the current height of the drone from the object directly below its IR sensor.
@@ -1554,7 +1572,6 @@ class CoDrone:
 
 
     ### FLIGHT SEQUENCES -------- START
-    ## TEST
 
     def flySequence(self, sequence):
         """This function makes the drone take off, fly in a given pattern, then land.
@@ -1700,7 +1717,7 @@ class CoDrone:
         data.commandType = CommandType.LinkModeBroadcast
         data.option = modeLinkBroadcast.value
 
-        return self._checkAck(header, data)
+        return self._transfer(header, data)
 
     def sendLinkSystemReset(self):
 
@@ -1714,7 +1731,7 @@ class CoDrone:
         data.commandType = CommandType.LinkSystemReset
         data.option = 0
 
-        return self._checkAck(header, data)
+        return self._transfer(header, data)
 
     def sendLinkDiscoverStart(self):
 
@@ -1728,7 +1745,7 @@ class CoDrone:
         data.commandType = CommandType.LinkDiscoverStart
         data.option = 0
 
-        return self._checkAck(header, data)
+        return self._transfer(header, data)
 
     def sendLinkDiscoverStop(self):
 
@@ -1773,7 +1790,7 @@ class CoDrone:
         data.commandType = CommandType.LinkDisconnect
         data.option = 0
 
-        return self._checkAck(header, data)
+        return self._transfer(header, data)
 
     def sendLinkRssiPollingStart(self):
 
