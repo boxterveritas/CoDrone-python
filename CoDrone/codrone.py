@@ -36,7 +36,7 @@ class CoDrone:
         self._bufferHandler = bytearray()
         self._index = 0
 
-        # thread
+        # Thread
         self._threadReceiving = None
         self._threadSendState = None
         self._lock = RLock()
@@ -88,8 +88,8 @@ class CoDrone:
     ### DATA PROCESSING THREAD -------- START
 
     def _receiving(self, lock, lockState):
-        """
-        Data receiving Thread, Save received data to buffer.
+        """Data receiving Thread, Save received data to buffer.
+
         Args:
             lock: main thread lock
             lockState: _sendRequestState lock
@@ -107,6 +107,12 @@ class CoDrone:
                     # sleep(0.001)
 
     def _check(self):
+        """Read 1-byte of data stored in the buffer and pass it to the receiver.
+
+        Returns: A member value in the DataType class.
+            If one data block received call _handler(), data parsing and return the datatype.
+            Returns DataType.None_ if no data received.
+        """
         while not self._bufferQueue.empty():
             dataArray = self._bufferQueue.get_nowait()
             self._bufferQueue.task_done()
@@ -142,11 +148,16 @@ class CoDrone:
         return DataType.None_
 
     def _handler(self, header, dataArray):
+        """Save header internally. Data parsing and saved internal class.
+        If event handler is registered, call function.
+
+        Returns: datatype, A member value in the DataType class.
+        """
+
         # save input data
         message = self._runHandler(header, dataArray)
 
-        # print error
-        if (message != None):
+        if (message != None):   # print error
             self._printError(message)
 
         # run callback event
@@ -174,11 +185,15 @@ class CoDrone:
         return header.dataType
 
     def _runHandler(self, header, dataArray):
+        """Store header and data into instance variables.
+        """
         if self._parser.d[header.dataType] is not None:
             self._storageHeader.d[header.dataType] = header
             self._storage.d[header.dataType] = self._parser.d[header.dataType](dataArray)
 
     def _runEventHandler(self, dataType):
+        """Call event handler with specified type of data
+        """
         if (isinstance(dataType, DataType)) and (self._eventHandler.d[dataType] is not None) and (
                 self._storage.d[dataType] is not None):
             return self._eventHandler.d[dataType](self._storage.d[dataType])
@@ -186,6 +201,8 @@ class CoDrone:
             return None
 
     def _setAllEventHandler(self):
+        """Set all event handlers for SENSORS part functions.
+        """
         self._eventHandler.d[DataType.Address] = self._data.eventUpdateAddress
         self._eventHandler.d[DataType.Attitude] = self._data.eventUpdateAttitude
         self._eventHandler.d[DataType.Battery] = self._data.eventUpdateBattery
@@ -198,8 +215,7 @@ class CoDrone:
         self._eventHandler.d[DataType.Ack] = self._data.eventUpdateAck
 
     def _sendRequestState(self, lock):
-        """
-        Data request Thread, Send state data request every 2 sec.
+        """Data request Thread, Send state data request every 2 sec.
         Args:
             lock: main thread lock
         """
@@ -211,8 +227,15 @@ class CoDrone:
                     sleep(0.01)
             sleep(2)
 
-    # Decorator
     def lockState(func):
+        """This function is a decorator for thread-locking.
+        If you apply this decorator to the function, the data request thread doesn't work while the function works.
+
+        Examples:
+            @lockState
+            def func:
+                pass
+        """
         def wrapper(self, *args, **kwargs):
             with self._lockState:
                 return func(self, *args, **kwargs)
@@ -224,6 +247,8 @@ class CoDrone:
     ### PRIVATE -------- START
 
     def _makeTransferDataArray(self, header, data):
+        """Make transfer byte data array
+        """
         if (header is None) or (data is None):
             return None
 
@@ -242,6 +267,8 @@ class CoDrone:
         return dataArray
 
     def _transfer(self, header, data):
+        """Transfer data
+        """
         if not self.isOpen():
             return
 
@@ -254,7 +281,17 @@ class CoDrone:
         return dataArray
 
     @lockState
-    def _checkAck(self, header, data, timeOnce=0.02, timeAll=0.2, flagAll=10):
+    def _checkAck(self, header, data, timeOnce=0.02, timeAll=0.2, count=10):
+        """This function checks the ack response after the data transfer.
+        If not received, repeat the data transfer depending on parameters.
+
+        Args:
+            timeOnce: The time interval between the retransmissions of data. The number of seconds as type float.
+            timeAll: The time until the function ends. The number of seconds as type float.
+            count: The number of transfers
+
+        Returns: True if the transfer works well, False otherwise.
+        """
         self._data.ack.dataType = 0
         flag = 1
 
@@ -263,7 +300,7 @@ class CoDrone:
         while self._data.ack.dataType != header.dataType:
             interval = time.time() - startTime
             # Break the loop if request time is over timeAll sec, send the request maximum flagAll times
-            if interval > timeOnce * flag and flag < flagAll:
+            if interval > timeOnce * flag and flag < count:
                 self._transfer(header, data)
                 flag += 1
             elif interval > timeAll:
@@ -303,7 +340,6 @@ class CoDrone:
                                                                   data.name, data.rssi))
 
     def _printLog(self, message):
-
         if self._flagShowLogMessage and message is not None:
             print(Fore.GREEN + "[{0:10.03f}] {1}".format((time.time() - self.timeStartProgram),
                                                          message) + Style.RESET_ALL)
@@ -318,12 +354,10 @@ class CoDrone:
             print(Back.YELLOW + Fore.BLACK + convertByteArrayToString(dataArray) + Style.RESET_ALL)
 
     def _printReceiveData(self, dataArray):
-
         if (self._flagShowReceiveData) and (dataArray != None) and (len(dataArray) > 0):
             print(Back.CYAN + Fore.BLACK + convertByteArrayToString(dataArray) + Style.RESET_ALL, end='')
 
     def _printReceiveDataEnd(self):
-
         if self._flagShowReceiveData:
             print("")
 
@@ -333,18 +367,32 @@ class CoDrone:
     ### PUBLIC COMMON -------- START
 
     def isOpen(self):
+        """Serial port connection status return.
+
+        Returns: True if port is opened, false otherwise.
+        """
         if self._serialport is not None:
             return self._serialport.isOpen()
         else:
             return False
 
     def isConnected(self):
+        """BLE connection status return.
+
+        Returns: True if BLE is connected, false otherwise.
+        """
         if not self.isOpen():
             return False
         else:
             return self._flagConnected
 
     def open(self, portName="None"):
+        """Open serial port. If not specify a port name, connect to the last detected device.
+
+        Args: Serial port name such as "COM14"
+
+        Returns: True if port is opened, false otherwise.
+        """
         if eq(portName, "None"):
             nodes = comports()
             size = len(nodes)
@@ -367,29 +415,27 @@ class CoDrone:
             self._threadReceving = Thread(target=self._receiving, args=(self._lock, self._lockState,), daemon=True).start()
 
             # print log
-            self._printLog("Connected.({0})".format(portName))
+            self._printLog(">> Connected.({0})".format(portName))
             return True
         else:
             # print error message
-            self._printError("Could not connect to PETRONE LINK.")
+            self._printError(">> Could not open the serial port.")
             return False
 
     def close(self):
+        """Close serial port
+        """
+
         # print log
         if self.isOpen():
             self._printLog("Closing serial port.")
 
+        # close thread
         if self._flagThreadRun:
             self._flagThreadRun = False
             sleep(0.01)
 
-        if self._threadReceiving is not None:
-            self._threadReceiving.join()
-
-        if self._threadSendState is not None:
-            self._threadSendState.join()
-
-        if self.isConnected():
+        while self.isConnected():
             self._flagConnected = self.sendLinkDisconnect()
             sleep(0.01)
 
@@ -397,7 +443,17 @@ class CoDrone:
             self._serialport.close()
             sleep(0.01)
 
-    def connect(self, portName="None", deviceName="None", flagSystemReset=False):
+    def connect(self, deviceName="None", portName="None", flagSystemReset=False):
+        """If the serial port is not open, open the serial port,
+        Search for CODRONE and connect it to the device with the strongest signal.
+
+        Args:
+            deviceName: If specify a deviceName, Connect only when the specified device is discovered.
+            portName: Serial port name.
+            flagSystemReset: Use to reset and start the first CODRONE LINK after the serial communication connection.
+
+        Returns: True if connected, false otherwise.
+        """
 
         # case for serial port is None(connect to last connection)
         if not self.isOpen():
@@ -529,6 +585,16 @@ class CoDrone:
 
     @lockState
     def sendRequest(self, dataType):
+        """This function sends data request with specified datatype.
+
+        Args:
+            dataType: a member value in the DataType enum class.
+
+        Examples:
+            >>> sendRequest(DataType.State)
+
+        Returns: True if responds well, false otherwise.
+        """
         if not isinstance(dataType, DataType):
             return None
 
@@ -540,10 +606,20 @@ class CoDrone:
         data = Request()
 
         data.dataType = dataType
-        return self._transfer(header, data)
+        return self._checkAck(header,data)
 
     @lockState
     def sendControl(self, roll, pitch, yaw, throttle):
+        """This function sends control request.
+
+        Args:
+            roll: the power of the roll, which is an int from -100 to 100
+            pitch: the power of the pitch, which is an int from -100 to 100
+            yaw: the power of the yaw, which is an int from -100 to 100
+            throttle: the power of the throttle, which is an int from -100 to 100
+
+        Returns: True if responds well, false otherwise.
+        """
         header = Header()
 
         header.dataType = DataType.Control
@@ -552,19 +628,20 @@ class CoDrone:
         control = Control()
         control.setAll(roll, pitch, yaw, throttle)
 
-        timeStart = time.time()
-        receivingFlag = self._storageCount.d[DataType.Attitude]
-        while (time.time() - timeStart) < 0.2:
-            self._transfer(header, control)
-            sleep(0.02)
-            if self._storageCount.d[DataType.Attitude] > receivingFlag:
-                break
-
-        if self._storageCount.d[DataType.Attitude] == receivingFlag:
-            self._printError(">> Failed to send control.")
+        return self._checkAck(header, control)
 
     @lockState
     def sendControlDuration(self, roll, pitch, yaw, throttle, duration):
+        """This function sends control request for the duration
+
+        Args:
+            roll: the power of the roll, which is an int from -100 to 100
+            pitch: the power of the pitch, which is an int from -100 to 100
+            yaw: the power of the yaw, which is an int from -100 to 100
+            throttle: the power of the throttle, which is an int from -100 to 100
+
+        Returns: True if responds well, false otherwise.
+        """
         if duration == 0:
             return self.sendControl(roll, pitch, yaw, throttle)
 
@@ -955,69 +1032,119 @@ class CoDrone:
 
     @lockState
     def _getDataWhile(self, dataType, timer=None):
+        """This function checks if a request arrived or not and requests again.
+
+        Args:
+            dataType: member values in the DataType class
+            timer: member values in the Timer class
+        """
         timeStart = time.time()
 
         if timer is not None:
             if timer[0] > (timeStart - timer[1]):
                 return False
 
-        recieveFlag = self._storageCount.d[dataType]
-        self.sendRequest(dataType)
+        header = Header()
 
-        # Break the loop if request time is over 0.15sec, send the request maximum 2 times
-        resendFlag = 1
-        while self._storageCount.d[dataType] == recieveFlag:
-            interval = time.time() - timeStart
-            if interval > 0.03 * resendFlag and resendFlag < 3:
-                self.sendRequest(dataType)
-                resendFlag += 1
-            elif interval > 0.15:
-                break
-            sleep(0.01)
-        return self._storageCount.d[dataType] > recieveFlag
+        header.dataType = DataType.Request
+        header.length = Request.getSize()
+
+        data = Request()
+
+        data.dataType = dataType
+        return self._checkAck(header,data, 0.03, 0.15, 3)
 
     def getHeight(self):
+        """This is a getter function gets the current height of the drone from the object directly below its IR sensor.
+
+        Returns:  The current height above the object directly below the drone’s IR height sensor.
+        """
         self._getDataWhile(DataType.Range, self._timer.range)
         return self._data.range
 
     def getPressure(self):
+        """This is a getter function gets the data from the barometer sensor.
+
+        Returns: The barometer’s air pressure in milibars at (0.13 resolution).
+        """
         self._getDataWhile(DataType.Pressure, self._timer.pressure)
         return self._data.pressure
 
     def getDroneTemp(self):
+        """This is a getter function gets the data from the drone’s temperature sensor.
+        Importantly, it reads the drone’s temperature, not the air around it.
+
+        Returns: The temperature in celsius as an integer.
+        """
         self._getDataWhile(DataType.Pressure, self._timer.pressure)
         return self._data.temperature
 
     def getAngularSpeed(self):
+        """This function gets the data from the gyrometer sensor for the roll, pitch, and yaw angular speed.
+
+        Returns: The Angle class. Angle has Roll, Pitch, Yaw.
+        """
         self._getDataWhile(DataType.Attitude, self._timer.attitude)
         return self._data.attitude
 
     def getGyroAngles(self):
+        """This function gets the data from the gyrometer sensor to determine the roll, pitch, and yaw as angles.
+
+        Returns: The Angle class. Angle has Roll, Pitch, Yaw.
+        """
         if self._getDataWhile(DataType.Imu, self._timer.imu):
             self._timer.imu[1] = time.time()
         return self._data.gyro
 
     def getAccelerometer(self):
+        """This function gets the accelerometer sensor data, which returns x, y, and z values in m/s2.
+
+        Returns: The Axis class. Axis has X,Y,Z
+        """
         self._getDataWhile(DataType.Imu, self._timer.imu)
         return self._data.accel
 
     def getOptFlowPosition(self):
+        """This function gets the x and y coordinates from the optical flow sensor.
+
+        Returns: The Position class. Position has X,Y
+        """
         self._getDataWhile(DataType.ImageFlow, self._timer.imageFlow)
         return self._data.imageFlow
 
     def getState(self):
+        """This function gets the state of the drone, as in whether it’s: ready, take off, flight, flip, stop, landing, reverse, accident, error
+
+        Returns: member values in the ModeFlight class
+
+        Examples:
+            >>>print(getState())
+            ModeFlight.Ready
+        """
         self._getDataWhile(DataType.State, self._timer.state)
         return self._data.state
 
     def getBatteryPercentage(self):
+        """This function gets the battery percentage of the drone.
+
+        Returns: The battery’s percentage as an integer from 0 - 100.
+        """
         self._getDataWhile(DataType.Battery, self._timer.battery)
         return self._data.batteryPercent
 
     def getBatteryVoltage(self):
+        """This function gets the voltage of the battery.
+
+        Returns: The voltage of the battery as an a float
+        """
         self._getDataWhile(DataType.Battery, self._timer.battery)
         return self._data.batteryVoltage
 
     def getTrim(self):
+        """This function gets the current trim values of the drone.
+
+        Returns: The Flight class. Flight has Roll,Pitch,Yaw,Throttle
+        """
         self._getDataWhile(DataType.TrimFlight, self._timer.trim)
         return self._data.trim
 
@@ -1026,12 +1153,27 @@ class CoDrone:
 
     ### STATUS CHECKERS -------- START
     def isUpsideDown(self):
-        return self._data.reversed != SensorOrientation.Normal
+        """This function checks the current drone status if it's reversed or not.
+
+        Returns:
+             boolean: True if upside down, False otherwise.
+        """
+        return self._data.reversed == SensorOrientation.Normal
 
     def isFlying(self):
+        """This function checks the current drone status if it's flying or not.
+
+        Returns:
+             boolean: True if flying, False otherwise.
+        """
         return self._data.state == ModeFlight.Flight
 
     def isReadyToFly(self):
+        """This function checks the current drone status if it's ready or not.
+
+        Returns:
+             boolean: True if ready to fly, False otherwise.
+        """
         return self._data.state == ModeFlight.Ready
 
     ### STATUS CHECKERS -------- END
@@ -1040,24 +1182,87 @@ class CoDrone:
     ### EVENT STATES -------- START
 
     def onUpsideDown(self, func):
+        """This function executes the function if drone is reversed.
+
+        Args: A function.
+
+        Example:
+             def func():
+                pass
+             onUpsideDown(func)
+        """
         self._data.upsideDown = func
 
     def onTakeoff(self, func):
+        """This function executes the function if drone takeoff.
+
+        Args: A function.
+
+        Example:
+             def func():
+                pass
+             onTakeoff(func)
+        """
         self._data.takeoff = func
 
     def onFlying(self, func):
+        """This function executes the function if drone is on flying.
+
+        Args: A function.
+
+        Example:
+             def func():
+                pass
+             onFlying(func)
+        """
         self._data.flying = func
 
     def onReady(self, func):
+        """This function executes the function if drone is on ready.
+
+        Args: A function.
+
+        Example:
+             def func():
+                pass
+             onReady(func)
+        """
         self._data.ready = func
 
     def onEmergencyStop(self, func):
+        """This function executes the function if drone is on emergency stop.
+
+        Args: A function.
+
+        Example:
+             def func():
+                pass
+             onEmergencyStop(func)
+        """
         self._data.emergencyStop = func
 
     def onCrash(self, func):
+        """This function executes the function if drone is on crash.
+
+        Args: A function.
+
+        Example:
+             def func():
+                pass
+             onCrash(func)
+        """
         self._data.crash = func
 
     def onLowBattery(self, func):
+        """This function executes the function if drone is on low battery.
+
+        Args: A function.
+
+        Example:
+             def func():
+                pass
+             onLowBattery(func)
+        """
         self._data.lowBattery = func
 
     ### EVENT STATES -------- END
@@ -1065,8 +1270,15 @@ class CoDrone:
 
     ### LEDS -------- START
 
-    # check response after requesting data
     def setArmRGB(self, red, green, blue):
+        """This function sets the LED color of the arms based on input red, green, and blue values.
+        Mode and bright are set with Hold and 100% for default
+
+        Args:
+            red: int value from 0 to 255
+            green: int value from 0 to 255
+            blue: int value from 0 to 255
+        """
         if ((not isinstance(red, int)) or
                 (not isinstance(green, int)) or
                 (not isinstance(blue, int))):
@@ -1089,6 +1301,13 @@ class CoDrone:
         self._checkAck(header, data, 0.06, 0.3, 3)
 
     def setEyeRGB(self, red, green, blue):
+        """This function sets the LED color of the eyes based on input red, green, and blue values
+
+        Args:
+             red: int value from 0 to 255
+             green: int value from 0 to 255
+             blue: int value from 0 to 255
+        """
         if ((not isinstance(red, int)) or
                 (not isinstance(green, int)) or
                 (not isinstance(blue, int))):
@@ -1111,6 +1330,13 @@ class CoDrone:
         self._checkAck(header,data, 0.06, 0.3, 3)
 
     def setAllRGB(self, red, green, blue):
+        """This function sets the LED color of the drone (except the green tail light) to the given color
+
+        Args:
+             red: int value from 0 to 255
+             green: int value from 0 to 255
+             blue: int value from 0 to 255
+        """
         if ((not isinstance(red, int)) or
                 (not isinstance(green, int)) or
                 (not isinstance(blue, int))):
@@ -1138,6 +1364,14 @@ class CoDrone:
         self._checkAck(header, data, 0.06, 0.3, 3)
 
     def setArmDefaultRGB(self, red, green, blue):
+        """This function sets the default LED color of the arms.
+        It will remain that color after powering off and back on.
+
+        Args:
+            red: int value from 0 to 255
+            green: int value from 0 to 255
+            blue: int value from 0 to 255
+        """
         if ((not isinstance(red, int)) or
                 (not isinstance(green, int)) or
                 (not isinstance(blue, int))):
@@ -1159,6 +1393,15 @@ class CoDrone:
         self._checkAck(header, data, 0.06, 0.3, 3)
 
     def setEyeDefaultRGB(self, red, green, blue):
+        """This function sets the default LED color of the eyes.
+        It will remain that color after powering off and back on.
+        Based on input red, green, and blue values
+
+        Args:
+            red: int value from 0 to 255
+            green: int value from 0 to 255
+            blue: int value from 0 to 255
+        """
         if ((not isinstance(red, int)) or
                 (not isinstance(green, int)) or
                 (not isinstance(blue, int))):
@@ -1180,6 +1423,8 @@ class CoDrone:
         self._checkAck(header, data, 0.06, 0.3, 3)
 
     def resetDefaultLED(self):
+        """This function sets the LED color of the eyes and arms back to red, which is the original default color.
+        """
         header = Header()
 
         header.dataType = DataType.LightModeDefaultColor
@@ -1198,6 +1443,14 @@ class CoDrone:
         self._checkAck(header, data, 0.06, 0.3, 3)
 
     def setEyeMode(self, mode):
+        """This function sets the LED light mode of the eyes to behave in different patterns.
+
+        Args:
+            Member values in the Mode enum class. Mode class has NONE,HOLD, MIX, FLICKER, FLICKER_DOUBLE, DIMMING
+
+        Examples:
+            >>> setEyeMode(Mode.HOLD)
+        """
         # EYE doesn't have flow mode
         if not isinstance(mode, Mode) or mode.value > Mode.Pulsing.value:
             return None
@@ -1218,6 +1471,14 @@ class CoDrone:
         return self._checkAck(header, data, 0.06, 0.3, 3)
 
     def setArmMode(self, mode):
+        """This function sets the LED light mode of the arms to behave in different patterns.
+
+        Args:
+            Member values in the Mode enum class. Mode class has NONE,HOLD, MIX, FLICKER, FLICKER_DOUBLE, DIMMING
+
+        Examples:
+            >>> setArmMode(Mode.HOLD)
+        """
         if not isinstance(mode, Mode):
             return None
 
@@ -1237,6 +1498,14 @@ class CoDrone:
         self._checkAck(header, data, 0.06, 0.3, 3)
 
     def setEyeDefaultMode(self, mode):
+        """This function sets the LED light default mode of the eyes to behave in different patterns.
+
+        Args:
+            Member values in the Mode enum class. Mode class has NONE,HOLD, MIX, FLICKER, FLICKER_DOUBLE, DIMMING
+
+        Examples:
+            >>> setEyeDefaultMode(Mode.HOLD)
+        """
         # EYE doesn't have flow mode
         if not isinstance(mode, Mode) or mode.value > Mode.Pulsing.value:
             return None
@@ -1256,6 +1525,14 @@ class CoDrone:
         self._checkAck(header, data, 0.06, 0.3, 3)
 
     def setArmDefaultMode(self, mode):
+        """This function sets the LED light default mode of the arms to behave in different patterns.
+
+        Args:
+            Member values in the Mode enum class. Mode class has NONE,HOLD, MIX, FLICKER, FLICKER_DOUBLE, DIMMING
+
+        Examples:
+            >>> setArmDefaultMode(Mode.HOLD)
+        """
         if not isinstance(mode, Mode):
             return None
 
@@ -1280,6 +1557,11 @@ class CoDrone:
     ## TEST
 
     def flySequence(self, sequence):
+        """This function makes the drone take off, fly in a given pattern, then land.
+
+        Args:
+            Member values in the Sequence class. Sequence class has SQUARE, CIRCLE, SPIRAL, TRIANGLE, HOP, SWAY, ZIG_ZAG
+        """
         if sequence == DroneSequence.SQUARE:
             self.flySquare()
         elif sequence == DroneSequence.CIRCLE:
@@ -1298,6 +1580,8 @@ class CoDrone:
             return None
 
     def flyRoulette(self):
+        """This function makes the drone take off, yaw for a random number of seconds between 5 and 10, then pitch forward in that direction.
+        """
         if self.getState() != ModeFlight.Flight:
             self.takeoff()
 
@@ -1307,6 +1591,9 @@ class CoDrone:
         self.hover(self._controlSleep)
 
     def turtleTurn(self):
+        """If the drone is in the upside down state.
+        This function makes the drone turn right side up by spinning the right two propellers
+        """
         self.go(Direction.LEFT, 1, 100)
 
     def flySquare(self):
