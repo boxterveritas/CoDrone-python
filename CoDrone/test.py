@@ -192,7 +192,7 @@ def main_test():
     drone = CoDrone(1, 1, 1)
 
     drone.connect()
-    test_getData(drone)
+    test_LEDs(drone)
     #drone.takeoff()
     # test_STARTSTOP(drone)
     # drone.land()

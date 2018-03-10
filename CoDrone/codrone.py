@@ -304,6 +304,7 @@ class CoDrone:
                 self._transfer(header, data)
                 flag += 1
             elif interval > timeAll:
+                self._printError(">> Failed to receive ack : {}".format(header.dataType))
                 break
             sleep(0.01)
         return self._data.ack.dataType == header.dataType
@@ -435,9 +436,9 @@ class CoDrone:
             self._flagThreadRun = False
             sleep(0.01)
 
-        if self.isConnected():
+        for i in range(5):
             self.sendLinkDisconnect()
-            sleep(0.02)
+            sleep(0.01)
 
         while self.isOpen():
             self._serialport.close()
@@ -1759,7 +1760,7 @@ class CoDrone:
         data.commandType = CommandType.LinkDiscoverStop
         data.option = 0
 
-        return self._checkAck(header, data)
+        return self._transfer(header, data)
 
     def sendLinkConnect(self, index):
 
@@ -1776,7 +1777,7 @@ class CoDrone:
         data.commandType = CommandType.LinkConnect
         data.option = index
 
-        return self._checkAck(header, data)
+        return self._transfer(header, data)
 
     def sendLinkDisconnect(self):
 
