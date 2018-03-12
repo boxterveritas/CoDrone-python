@@ -10,7 +10,6 @@ class EventStatesFunc:
         self.landing = None
         self.ready = None
         self.emergencyStop = None
-        self.crash = None
         self.lowBattery = None
 
 
@@ -34,7 +33,6 @@ class Timer:
         self.landing = [5, 0]
         self.ready = [10, 0]
         self.emergencyStop = [5, 0]
-        self.crash = [3, 0]
         self.lowBattery = [10, 0]
 
 
@@ -112,27 +110,20 @@ class Data(EventStatesFunc):
             if start_time - self.timer.lowBattery[1] > self.timer.lowBattery[0]:
                 self.lowBattery()
                 self.timer.lowBattery[1] = start_time
-        if self.ready is not None and self.state == ModeFlight.Ready:
+        if self.ready is not None and self.state == ModeFlight.READY:
             if start_time - self.timer.ready[1] > self.timer.ready[0]:
                 self.ready()
                 self.timer.ready[1] = start_time
                 return
-        if self.flying is not None and self.state == ModeFlight.Flight:
+        if self.flying is not None and self.state == ModeFlight.FLIGHT:
             if start_time - self.timer.flying[1] > self.timer.flying[0]:
                 self.flying()
                 self.timer.flying[1] = start_time
                 return
-        if self.landing is not None and self.state == ModeFlight.Landing:
+        if self.landing is not None and self.state == ModeFlight.LANDING:
             if start_time - self.timer.landing[1] > self.timer.landing[0]:
                 self.landing()
                 self.timer.landing[1] = start_time
-                return
-        ## TO DO
-        ## How to check crash ? (ModeFlight.accident is too short time)
-        if self.crash is not None and self.state == ModeFlight.Accident:
-            if start_time - self.timer.crash[1] > self.timer.crash[0]:
-                self.crash()
-                self.timer.crash[1] = start_time
                 return
         # whenever user executes flight function
         if self.takeoff is not None and self.takeoffFuncFlag:

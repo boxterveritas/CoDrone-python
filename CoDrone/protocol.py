@@ -22,10 +22,10 @@ class ISerializable:
 
 class Flight:
     def __init__(self, roll, pitch, yaw, throttle):
-        self.Roll = roll
-        self.Pitch = pitch
-        self.Yaw = yaw
-        self.Throttle = throttle
+        self.ROLL = roll
+        self.PITCH = pitch
+        self.YAW = yaw
+        self.THROTTLE = throttle
 
 class Position:
     def __init__(self, x, y):
@@ -34,27 +34,15 @@ class Position:
 
 class Angle:
     def __init__(self, roll, pitch, yaw):
-        self.Roll = roll
-        self.Pitch = pitch
-        self.Yaw = yaw
+        self.ROLL = roll
+        self.PITCH = pitch
+        self.YAW = yaw
 
 class Axis:
     def __init__(self, x, y, z):
         self.X = x
         self.Y = y
         self.Z = z
-
-class Mode(Enum):
-    Off = 0x10
-    Hold = 0x11
-    Mix = 0x12
-    Blinking = 0x13
-    DoubleBlink = 0x14
-    Pulsing = 0x15
-    Flow = 0x16
-    ReverseFlow = 0x17
-
-
 
 # DataType Start
 

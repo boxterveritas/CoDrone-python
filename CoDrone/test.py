@@ -134,15 +134,15 @@ def test_LEDs(drone):
 
     print("Default setting")
     drone.setArmDefaultRGB(0, 0, 255)
-    drone.setArmDefaultMode(Mode.Flow)
+    drone.setArmDefaultMode(Mode.FLOW)
     drone.setEyeDefaultRGB(0, 0, 255)
-    drone.setEyeDefaultMode(Mode.Blinking)
+    drone.setEyeDefaultMode(Mode.BLINKING)
     # drone.resetDefaultLED()
 
     sleep(3)  # check time
 
     print("eye : Blinking Green, arm : DoubleBlinking Green")
-    drone.setEyeMode(Mode.Blinking)
+    drone.setEyeMode(Mode.BLINKING)
 
     sleep(3)  # check time
 
@@ -150,7 +150,7 @@ def test_LEDs(drone):
 
     sleep(3)  # check time
 
-    drone.setArmMode(Mode.DoubleBlink)
+    drone.setArmMode(Mode.DOUBLE_BLINK)
 
     sleep(3)  # check time
 
@@ -159,45 +159,31 @@ def test_LEDs(drone):
     sleep(3)  # check time
 
     print("eye : Mix, arm : Flow red")
-    drone.setEyeMode(Mode.Mix)
+    drone.setEyeMode(Mode.MIX)
     drone.setEyeRGB(255, 0, 0)
 
-    drone.setArmMode(Mode.Flow)
+    drone.setArmMode(Mode.FLOW)
     drone.setArmRGB(255, 0, 0)
 
     # for seeing color
     sleep(3)
 
     print("eye : Reverse Flow Green, arm : Pulsing Green")
-    drone.setEyeMode(Mode.Pulsing)
+    drone.setEyeMode(Mode.PULSING)
     drone.setEyeRGB(0, 255, 0)
 
-    drone.setArmMode(Mode.ReverseFlow)
+    drone.setArmMode(Mode.REVERSE_FLOW)
     drone.setArmRGB(0, 255, 0)
 
     # for seeing color
     sleep(3)
 
     print("eye : Off , arm : Hold Blue")
-    drone.setEyeMode(Mode.Off)
-    drone.setArmMode(Mode.Hold)
+    drone.setEyeMode(Mode.OFF)
+    drone.setArmMode(Mode.HOLD)
     drone.setArmRGB(0, 0, 255)
 
     sleep(3)
     print("all green!! ")
     drone.setAllRGB(0, 255, 0)
 
-
-def main_test():
-    drone = CoDrone(1, 1, 1)
-
-    drone.connect()
-    test_LEDs(drone)
-    #drone.takeoff()
-    # test_STARTSTOP(drone)
-    # drone.land()
-    drone.close()
-
-
-if __name__ == "__main__":
-    main_test()

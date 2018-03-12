@@ -281,7 +281,7 @@ class CoDrone:
         return dataArray
 
     @lockState
-    def _checkAck(self, header, data, timeOnce=0.02, timeAll=0.2, count=10):
+    def _checkAck(self, header, data, timeOnce=0.03, timeAll=0.2, count=5):
         """This function checks the ack response after the data transfer.
         If not received, repeat the data transfer depending on parameters.
 
@@ -963,13 +963,13 @@ class CoDrone:
         power = 20
         bias = 3
 
-        yawPast = self.getAngularSpeed().Yaw
+        yawPast = self.getAngularSpeed().YAW
         direction = ((direction == Direction.RIGHT) - (direction == Direction.LEFT))  # right = 1 / left = -1
         degreeGoal = direction * (degree.value - bias) + yawPast
 
         start_time = time.time()
         while (time.time() - start_time) < degree.value / 3:
-            yaw = self._data.attitude.Yaw  # Receive attitude data every time you send a flight command
+            yaw = self._data.attitude.YAW  # Receive attitude data every time you send a flight command
             if abs(yawPast - yaw) > 180:  # When the sign changes
                 degreeGoal -= direction * 360
             yawPast = yaw
@@ -991,12 +991,12 @@ class CoDrone:
         power = 20
         bias = 3
 
-        yawPast = self.getAngularSpeed().Yaw
+        yawPast = self.getAngularSpeed().YAW
         degreeGoal = 180 - bias + yawPast
 
         start_time = time.time()
         while (time.time() - start_time) < 60:
-            yaw = self._data.attitude.Yaw  # Receive attitude data every time you send a flight command
+            yaw = self._data.attitude.YAW  # Receive attitude data every time you send a flight command
             if abs(yawPast - yaw) > 180:  # When the sign changes
                 degreeGoal -= 360
             yawPast = yaw
@@ -1101,19 +1101,18 @@ class CoDrone:
     def getAngularSpeed(self):
         """This function gets the data from the gyrometer sensor for the roll, pitch, and yaw angular speed.
 
-        Returns: The Angle class. Angle has Roll, Pitch, Yaw.
+        Returns: The Angle class. Angle has ROLL, PITCH, YAW.
         """
-        self._getDataWhile(DataType.Attitude, self._timer.attitude)
-        return self._data.attitude
+        self._getDataWhile(DataType.Imu, self._timer.imu)
+        return self._data.gyro
 
     def getGyroAngles(self):
         """This function gets the data from the gyrometer sensor to determine the roll, pitch, and yaw as angles.
 
-        Returns: The Angle class. Angle has Roll, Pitch, Yaw.
+        Returns: The Angle class. Angle has ROLL, PITCH, YAW.
         """
-        if self._getDataWhile(DataType.Imu, self._timer.imu):
-            self._timer.imu[1] = time.time()
-        return self._data.gyro
+        self._getDataWhile(DataType.Attitude, self._timer.attitude)
+        return self._data.attitude
 
     def getAccelerometer(self):
         """This function gets the accelerometer sensor data, which returns x, y, and z values in m/s2.
@@ -1134,14 +1133,15 @@ class CoDrone:
     def getState(self):
         """This function gets the state of the drone, as in whether it’s: ready, take off, flight, flip, stop, landing, reverse, accident, error
 
-        Returns: member values in the ModeFlight class
+        Returns: string of member values in the ModeFlight class.
+            READY, TAKE_OFF, FLIGHT, FLIP, STOP, LANDING, REVERSE, ACCIDENT, ERROR
 
         Examples:
             >>>print(getState())
-            ModeFlight.Ready
+            Ready
         """
         self._getDataWhile(DataType.State, self._timer.state)
-        return self._data.state
+        return self._data.state.name
 
     def getBatteryPercentage(self):
         """This function gets the battery percentage of the drone.
@@ -1162,7 +1162,7 @@ class CoDrone:
     def getTrim(self):
         """This function gets the current trim values of the drone.
 
-        Returns: The Flight class. Flight has Roll,Pitch,Yaw,Throttle
+        Returns: The Flight class. Flight has ROLL, PITCH, YAW, THROTTLE
         """
         self._getDataWhile(DataType.TrimFlight, self._timer.trim)
         return self._data.trim
@@ -1185,7 +1185,7 @@ class CoDrone:
         Returns:
              boolean: True if flying, False otherwise.
         """
-        return self._data.state == ModeFlight.Flight
+        return self._data.state == ModeFlight.FLIGHT
 
     def isReadyToFly(self):
         """This function checks the current drone status if it's ready or not.
@@ -1193,7 +1193,7 @@ class CoDrone:
         Returns:
              boolean: True if ready to fly, False otherwise.
         """
-        return self._data.state == ModeFlight.Ready
+        return self._data.state == ModeFlight.READY
 
     ### STATUS CHECKERS -------- END
 
@@ -1259,18 +1259,6 @@ class CoDrone:
              onEmergencyStop(func)
         """
         self._data.emergencyStop = func
-
-    def onCrash(self, func):
-        """This function executes the function if drone is on crash.
-
-        Args: A function.
-
-        Example:
-             def func():
-                pass
-             onCrash(func)
-        """
-        self._data.crash = func
 
     def onLowBattery(self, func):
         """This function executes the function if drone is on low battery.
@@ -1471,7 +1459,7 @@ class CoDrone:
             >>> setEyeMode(Mode.HOLD)
         """
         # EYE doesn't have flow mode
-        if not isinstance(mode, Mode) or mode.value > Mode.Pulsing.value:
+        if not isinstance(mode, Mode) or mode.value > Mode.PULSING.value:
             return None
 
         self._LEDEyeMode = mode
@@ -1526,7 +1514,7 @@ class CoDrone:
             >>> setEyeDefaultMode(Mode.HOLD)
         """
         # EYE doesn't have flow mode
-        if not isinstance(mode, Mode) or mode.value > Mode.Pulsing.value:
+        if not isinstance(mode, Mode) or mode.value > Mode.PULSING.value:
             return None
 
         self._LEDEyeMode = mode
@@ -1600,7 +1588,7 @@ class CoDrone:
     def flyRoulette(self):
         """This function makes the drone take off, yaw for a random number of seconds between 5 and 10, then pitch forward in that direction.
         """
-        if self.getState() != ModeFlight.Flight:
+        if self.getState() != ModeFlight.FLIGHT:
             self.takeoff()
 
         self.turn(Direction.RIGHT, 5 + (self.timeStartProgram % 5), 30)
@@ -1615,7 +1603,7 @@ class CoDrone:
         self.go(Direction.LEFT, 1, 100)
 
     def flySquare(self):
-        if self.getState() != ModeFlight.Flight:
+        if self.getState() != ModeFlight.FLIGHT:
             self.takeoff()
 
         self.go(Direction.RIGHT, 1, 50)
@@ -1626,18 +1614,18 @@ class CoDrone:
         self.hover(self._controlSleep)
 
     def flyCircle(self):
-        if self.getState() != ModeFlight.Flight:
+        if self.getState() != ModeFlight.FLIGHT:
             self.takeoff()
 
         power = -50
-        yaw = self.getAngularSpeed().Yaw
+        yaw = self.getAngularSpeed().YAW
         degree = -360 + yaw
 
         startTime = time.time()
         while (time.time() - startTime) < 15:
-            if abs(yaw - self._data.attitude.Yaw) > 180:
+            if abs(yaw - self._data.attitude.YAW) > 180:
                 degree += 360
-            yaw = self._data.attitude.Yaw
+            yaw = self._data.attitude.YAW
             if degree < yaw:
                 self.sendControl(10, 0, power, 0)
                 sleep(0.1)
@@ -1647,7 +1635,7 @@ class CoDrone:
         self.hover(self._controlSleep)
 
     def flySpiral(self):
-        if self.getState() != ModeFlight.Flight:
+        if self.getState() != ModeFlight.FLIGHT:
             self.takeoff()
 
         for i in range(5):
@@ -1657,7 +1645,7 @@ class CoDrone:
         self.hover(self._controlSleep)
 
     def flyTriangle(self):
-        if self.getState() != ModeFlight.Flight:
+        if self.getState() != ModeFlight.FLIGHT:
             self.takeoff()
 
         self.turnDegree(Direction.RIGHT, Degree.ANGLE_30)
@@ -1671,7 +1659,7 @@ class CoDrone:
         self.hover(self._controlSleep)
 
     def flyHop(self):
-        if self.getState() != ModeFlight.Flight:
+        if self.getState() != ModeFlight.FLIGHT:
             self.takeoff()
 
         self.sendControlDuration(0, 30, 0, 50, 1)
@@ -1680,7 +1668,7 @@ class CoDrone:
         self.hover(self._controlSleep)
 
     def flySway(self):
-        if self.getState() != ModeFlight.Flight:
+        if self.getState() != ModeFlight.FLIGHT:
             self.takeoff()
 
         for i in range(2):
@@ -1690,7 +1678,7 @@ class CoDrone:
         self.hover(self._controlSleep)
 
     def flyZigzag(self):
-        if self.getState() != ModeFlight.Flight:
+        if self.getState() != ModeFlight.FLIGHT:
             self.takeoff()
 
         for i in range(2):
