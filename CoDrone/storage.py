@@ -1,6 +1,4 @@
-from system import *
 from protocol import *
-
 
 # EventHandler
 class EventHandler:

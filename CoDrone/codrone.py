@@ -3,14 +3,13 @@ from queue import Queue
 from threading import RLock
 from threading import Thread
 from time import sleep
-
 import colorama
 from colorama import Fore, Back, Style
 import serial
 from serial.tools.list_ports import comports
+
 from receiver import *
 from storage import *
-from data import *
 
 
 def convertByteArrayToString(dataArray):
@@ -72,7 +71,6 @@ class CoDrone:
 
         # Parameter
         self._lowBatteryPercent = 30    # when the program starts, battery alert percentage
-        self._controlSleep = 1     # at the end of the control
 
         # LED
         self._LEDColor = [255, 0, 0]
@@ -641,6 +639,8 @@ class CoDrone:
         if self._storageCount.d[DataType.Attitude] == receivingFlag:
             self._printError(">> Failed to send control.")
 
+        return self._storageCount.d[DataType.Attitude] == receivingFlag
+
     @lockState
     def sendControlDuration(self, roll, pitch, yaw, throttle, duration):
         """This function sends control request for the duration
@@ -671,75 +671,42 @@ class CoDrone:
             self._transfer(header, control)
             sleep(0.02)
 
-        self.hover(self._controlSleep)
+        self.hover(1)
 
     ### SENDING -------- End
 
 
     ### FLIGHT VARIABLES -------- START
-
-    def setRoll(self, power):
-        """This is a setter function that allows you to set the roll variable.
-
+    """
+    Setter:
         Args:
-            power: An int from -100(left) to 100(right) that sets the roll variable.
-        """
+            power: An int from -100 to 100 that sets the variable.
+
+    Getter:
+        Returns: The power of the variable(int)        
+    """
+    def setRoll(self, power):
         self._control.roll = power
 
     def setPitch(self, power):
-        """This is a setter function that allows you to set the pitch variable.
-
-        Args:
-            power: An int from -100(backwards) to 100(forwards) that sets the pitch variable.
-        """
-
         self._control.pitch = power
 
     def setYaw(self, power):
-        """This is a setter function that allows you to set the yaw variable.
-
-        Args:
-            power: An int from -100(counterclockwise) to 100(clockwise) that sets the yaw variable.
-        """
-
         self._control.yaw = power
 
     def setThrottle(self, power):
-        """This is a setter function that allows you to set the throttle variable.
-
-        Args:
-            power: An int from -100(downwards) to 100(upwards) that sets the throttle variable.
-        """
-
         self._control.throttle = power
 
     def getRoll(self):
-        """This is a getter function that gets the value of the roll variable.
-
-        Returns: The power of the roll variable (int)
-        """
-
         return self._control.roll
 
     def getPitch(self):
-        """This is a getter function that gets the value of the pitch variable.
-
-        Returns: The power of the pitch variable (int)
-        """
         return self._control.pitch
 
     def getYaw(self):
-        """This is a getter function that gets the value of the yaw variable.
-
-        Returns: The power of the yaw variable(int)
-        """
         return self._control.yaw
 
     def getThrottle(self):
-        """This is a getter function that gets the value of the throttle variable.
-
-        Returns: The power of the throttle variable(int)
-        """
         return self._control.throttle
 
     def trim(self, roll, pitch, yaw, throttle):
@@ -849,7 +816,6 @@ class CoDrone:
         else:
             if not self._checkAck(header, control):
                 self._printError(">> Failed to hover")
-        sleep(self._controlSleep)
 
     def emergencyStop(self):
         """This function immediately stops all commands and stops all motors, so the drone will stop flying immediately.
@@ -894,7 +860,7 @@ class CoDrone:
         """
         if duration is None:    # move()
             self.sendControl(*self._control.getAll())
-            sleep(self._controlSleep)
+            sleep(1)
         elif roll is None:      # move(duration)
             self.sendControlDuration(*self._control.getAll(), duration)
         else:                   # move(duration, roll, pitch, yaw, throttle)
@@ -982,7 +948,7 @@ class CoDrone:
             sleep(0.05)
 
         self.sendControl(0, 0, 0, 0)
-        sleep(self._controlSleep)
+        sleep(1)
 
     @lockState
     def rotate180(self):
@@ -1009,7 +975,7 @@ class CoDrone:
     @lockState
     def goToHeight(self, height):
         """This is a setter function will make the drone fly to the given height above the object directly below its IR sensor (usually the ground).
-        It’s effective between 20 and 2000 millimeters.
+        It’s effective between 20 and 1500 millimeters.
         It uses the IR sensor to continuously check for its height.
 
         height: An int from 20 to 2000 in millimeters.
@@ -1031,7 +997,7 @@ class CoDrone:
                 break
 
         self.sendControl(0, 0, 0, 0)
-        sleep(self._controlSleep)
+        sleep(1)
 
     ### FLIGHT COMMANDS (MOVEMENT) -------- END
 
@@ -1040,7 +1006,7 @@ class CoDrone:
 
     @lockState
     def _getDataWhile(self, dataType, timer=None):
-        """This function checks if a request arrived or not and requests again.
+        """This function checks if a request arrived or not and requests again maximum 3 times, 0.15sec
 
         Args:
             dataType: member values in the DataType class
@@ -1059,7 +1025,7 @@ class CoDrone:
         data = Request()
         data.dataType = dataType
 
-        # Break the loop if request time is over 0.15sec, send the request maximum 2 times
+        # Break the loop if request time is over 0.15sec, send the request maximum 3 times
         receivingFlag = self._storageCount.d[dataType]
         resendFlag = 1
         self._transfer(header, data)
@@ -1078,6 +1044,8 @@ class CoDrone:
 
         Returns:  The current height above the object directly below the drone’s IR height sensor.
         """
+
+        #Checks if a request arrived or not and requests again maximum 3 times, 0.15sec
         self._getDataWhile(DataType.Range, self._timer.range)
         return self._data.range
 
@@ -1086,6 +1054,8 @@ class CoDrone:
 
         Returns: The barometer’s air pressure in milibars at (0.13 resolution).
         """
+
+        # Checks if a request arrived or not and requests again maximum 3 times, 0.15sec
         self._getDataWhile(DataType.Pressure, self._timer.pressure)
         return self._data.pressure
 
@@ -1095,6 +1065,8 @@ class CoDrone:
 
         Returns: The temperature in celsius as an integer.
         """
+
+        # Checks if a request arrived or not and requests again maximum 3 times, 0.15sec
         self._getDataWhile(DataType.Pressure, self._timer.pressure)
         return self._data.temperature
 
@@ -1103,6 +1075,8 @@ class CoDrone:
 
         Returns: The Angle class. Angle has ROLL, PITCH, YAW.
         """
+
+        # Checks if a request arrived or not and requests again maximum 3 times, 0.15sec
         self._getDataWhile(DataType.Imu, self._timer.imu)
         return self._data.gyro
 
@@ -1111,6 +1085,8 @@ class CoDrone:
 
         Returns: The Angle class. Angle has ROLL, PITCH, YAW.
         """
+
+        # Checks if a request arrived or not and requests again maximum 3 times, 0.15sec
         self._getDataWhile(DataType.Attitude, self._timer.attitude)
         return self._data.attitude
 
@@ -1119,6 +1095,8 @@ class CoDrone:
 
         Returns: The Axis class. Axis has X,Y,Z
         """
+
+        # Checks if a request arrived or not and requests again maximum 3 times, 0.15sec
         self._getDataWhile(DataType.Imu, self._timer.imu)
         return self._data.accel
 
@@ -1127,6 +1105,8 @@ class CoDrone:
 
         Returns: The Position class. Position has X,Y
         """
+
+        # Checks if a request arrived or not and requests again maximum 3 times, 0.15sec
         self._getDataWhile(DataType.ImageFlow, self._timer.imageFlow)
         return self._data.imageFlow
 
@@ -1140,6 +1120,8 @@ class CoDrone:
             >>>print(getState())
             Ready
         """
+
+        # Checks if a request arrived or not and requests again maximum 3 times, 0.15sec
         self._getDataWhile(DataType.State, self._timer.state)
         return self._data.state.name
 
@@ -1148,6 +1130,8 @@ class CoDrone:
 
         Returns: The battery’s percentage as an integer from 0 - 100.
         """
+
+        # Checks if a request arrived or not and requests again maximum 3 times, 0.15sec
         self._getDataWhile(DataType.Battery, self._timer.battery)
         return self._data.batteryPercent
 
@@ -1156,6 +1140,8 @@ class CoDrone:
 
         Returns: The voltage of the battery as an a float
         """
+
+        # Checks if a request arrived or not and requests again maximum 3 times, 0.15sec
         self._getDataWhile(DataType.Battery, self._timer.battery)
         return self._data.batteryVoltage
 
@@ -1164,6 +1150,8 @@ class CoDrone:
 
         Returns: The Flight class. Flight has ROLL, PITCH, YAW, THROTTLE
         """
+
+        # Checks if a request arrived or not and requests again maximum 3 times, 0.15sec
         self._getDataWhile(DataType.TrimFlight, self._timer.trim)
         return self._data.trim
 
@@ -1594,7 +1582,7 @@ class CoDrone:
         self.turn(Direction.RIGHT, 5 + (self.timeStartProgram % 5), 30)
         self.go(Direction.FORWARD, 1)
 
-        self.hover(self._controlSleep)
+        self.hover(1)
 
     def turtleTurn(self):
         """If the drone is in the upside down state.
@@ -1611,7 +1599,7 @@ class CoDrone:
         self.go(Direction.LEFT, 1, 50)
         self.go(Direction.BACKWARD, 1, 50)
 
-        self.hover(self._controlSleep)
+        self.hover(1)
 
     def flyCircle(self):
         if self.getState() != ModeFlight.FLIGHT:
@@ -1632,7 +1620,7 @@ class CoDrone:
             else:
                 break
 
-        self.hover(self._controlSleep)
+        self.hover(1)
 
     def flySpiral(self):
         if self.getState() != ModeFlight.FLIGHT:
@@ -1642,7 +1630,7 @@ class CoDrone:
             self.sendControl(10, 0, -50, -i * 2)
             sleep(1)
 
-        self.hover(self._controlSleep)
+        self.hover(1)
 
     def flyTriangle(self):
         if self.getState() != ModeFlight.FLIGHT:
@@ -1656,7 +1644,7 @@ class CoDrone:
         self.turnDegree(Direction.LEFT, Degree.ANGLE_120)
         self.go(Direction.FORWARD, 1)
 
-        self.hover(self._controlSleep)
+        self.hover(1)
 
     def flyHop(self):
         if self.getState() != ModeFlight.FLIGHT:
@@ -1665,7 +1653,7 @@ class CoDrone:
         self.sendControlDuration(0, 30, 0, 50, 1)
         self.sendControlDuration(0, 30, 0, -50, 1)
 
-        self.hover(self._controlSleep)
+        self.hover(1)
 
     def flySway(self):
         if self.getState() != ModeFlight.FLIGHT:
@@ -1675,7 +1663,7 @@ class CoDrone:
             self.go(Direction.LEFT, 1, 50)
             self.go(Direction.RIGHT, 1, 50)
 
-        self.hover(self._controlSleep)
+        self.hover(1)
 
     def flyZigzag(self):
         if self.getState() != ModeFlight.FLIGHT:
@@ -1685,7 +1673,7 @@ class CoDrone:
             self.move(1, 50, 50, 0, 0)
             self.move(1, -50, 50, 0, 0)
 
-        self.hover(self._controlSleep)
+        self.hover(1)
 
     ### FLIGHT SEQUENCES -------- END
 
@@ -1836,3 +1824,5 @@ class CoDrone:
             return None
 
         return self._storageCount.d[dataType]
+
+drone = CoDrone()

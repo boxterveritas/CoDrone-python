@@ -1,5 +1,28 @@
 from enum import Enum
 
+class Flight:
+    def __init__(self, roll, pitch, yaw, throttle):
+        self.ROLL = roll
+        self.PITCH = pitch
+        self.YAW = yaw
+        self.THROTTLE = throttle
+
+class Position:
+    def __init__(self, x, y):
+        self.X = x
+        self.Y = y
+
+class Angle:
+    def __init__(self, roll, pitch, yaw):
+        self.ROLL = roll
+        self.PITCH = pitch
+        self.YAW = yaw
+
+class Axis:
+    def __init__(self, x, y, z):
+        self.X = x
+        self.Y = y
+        self.Z = z
 
 class DroneSequence(Enum):
     None_ = 0x00
