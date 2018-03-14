@@ -20,11 +20,10 @@ setup(
     author='robolink',
     author_email='whoseop@robolink.com',
     packages=["CoDrone"],
-    keywords=['robolink','drone'],
+    keywords=['robolink','drone','codrone'],
     include_package_data=True,
     install_requires=install_requires,
     setup_requires=setup_requires,
     dependency_links=dependency_links,
-    # scripts=['manage.py'],
     python_requires='>=3',
     )

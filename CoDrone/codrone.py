@@ -62,7 +62,7 @@ class CoDrone:
         self._devices = []  # when using auto connect, save search list
         self._flagDiscover = False  # when using auto connect, notice is discover
         self._flagConnected = False  # when using auto connect, notice connection with device
-        self.timeStartProgram = time.time()  # record program starting time
+        self.timeStartProgram = time()  # record program starting time
 
         # Data
         self._timer = Timer()
@@ -294,9 +294,9 @@ class CoDrone:
         flag = 1
 
         self._transfer(header, data)
-        startTime = time.time()
+        startTime = time()
         while self._data.ack.dataType != header.dataType:
-            interval = time.time() - startTime
+            interval = time() - startTime
             # Break the loop if request time is over timeAll sec, send the request maximum flagAll times
             if interval > timeOnce * flag and flag < count:
                 self._transfer(header, data)
@@ -340,13 +340,13 @@ class CoDrone:
 
     def _printLog(self, message):
         if self._flagShowLogMessage and message is not None:
-            print(Fore.GREEN + "[{0:10.03f}] {1}".format((time.time() - self.timeStartProgram),
+            print(Fore.GREEN + "[{0:10.03f}] {1}".format((time() - self.timeStartProgram),
                                                          message) + Style.RESET_ALL)
 
     def _printError(self, message):
         if self._flagShowErrorMessage and message is not None:
             print(
-                Fore.RED + "[{0:10.03f}] {1}".format((time.time() - self.timeStartProgram), message) + Style.RESET_ALL)
+                Fore.RED + "[{0:10.03f}] {1}".format((time() - self.timeStartProgram), message) + Style.RESET_ALL)
 
     def _printTransferData(self, dataArray):
         if (self._flagShowTransferData) and (dataArray != None) and (len(dataArray) > 0):
@@ -642,11 +642,11 @@ class CoDrone:
         control = Control()
         control.setAll(roll, pitch, yaw, throttle)
 
-        timeStart = time.time()
+        timeStart = time()
 
         receivingFlag = self._storageCount.d[DataType.Attitude]
 
-        while (time.time() - timeStart) < 0.2:
+        while (time() - timeStart) < 0.2:
             self._transfer(header, control)
             sleep(0.02)
             if self._storageCount.d[DataType.Attitude] > receivingFlag:
@@ -681,8 +681,8 @@ class CoDrone:
 
         self._transfer(header, control)
 
-        timeStart = time.time()
-        while (time.time() - timeStart) < duration:
+        timeStart = time()
+        while (time() - timeStart) < duration:
             self._transfer(header, control)
             sleep(0.02)
 
@@ -815,7 +815,7 @@ class CoDrone:
         Args:
             duration: The number of seconds to hover as type float. If 0, the duration is infinity.
         """
-        timeStart = time.time()
+        timeStart = time()
         header = Header()
 
         header.dataType = DataType.Control
@@ -825,7 +825,7 @@ class CoDrone:
         control.setAll(0, 0, 0, 0)
 
         if duration != 0:
-            while (time.time() - timeStart) < duration:
+            while (time() - timeStart) < duration:
                 self._transfer(header, control)
                 sleep(0.1)
         else:
@@ -948,8 +948,8 @@ class CoDrone:
         direction = ((direction == Direction.RIGHT) - (direction == Direction.LEFT))  # right = 1 / left = -1
         degreeGoal = direction * (degree.value - bias) + yawPast
 
-        start_time = time.time()
-        while (time.time() - start_time) < degree.value / 3:
+        start_time = time()
+        while (time() - start_time) < degree.value / 3:
             yaw = self._data.attitude.YAW  # Receive attitude data every time you send a flight command
             if abs(yawPast - yaw) > 180:  # When the sign changes
                 degreeGoal -= direction * 360
@@ -975,8 +975,8 @@ class CoDrone:
         yawPast = self.getAngularSpeed().YAW
         degreeGoal = 180 - bias + yawPast
 
-        start_time = time.time()
-        while (time.time() - start_time) < 60:
+        start_time = time()
+        while (time() - start_time) < 60:
             yaw = self._data.attitude.YAW  # Receive attitude data every time you send a flight command
             if abs(yawPast - yaw) > 180:  # When the sign changes
                 degreeGoal -= 360
@@ -998,8 +998,8 @@ class CoDrone:
         power = 30
         interval = 20  # height - 10 ~ height + 10
 
-        start_time = time.time()
-        while time.time() - start_time < 100:
+        start_time = time()
+        while time() - start_time < 100:
             state = self.getHeight()
             differ = height - state
             if differ > interval:   # Up
@@ -1027,7 +1027,7 @@ class CoDrone:
             dataType: member values in the DataType class
             timer: member values in the Timer class
         """
-        timeStart = time.time()
+        timeStart = time()
 
         if timer is not None:
             if timer[0] > (timeStart - timer[1]):
@@ -1045,7 +1045,7 @@ class CoDrone:
         resendFlag = 1
         self._transfer(header, data)
         while self._storageCount.d[dataType] == receivingFlag:
-            interval = time.time() - timeStart
+            interval = time() - timeStart
             if interval > 0.03 * resendFlag and resendFlag < 3:
                 self._transfer(header, data)
                 resendFlag += 1
