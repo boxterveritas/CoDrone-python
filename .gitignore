@@ -1,4 +1,3 @@
-*.cpython-36
-*.pyc
-*.xml
-*.iml
+build/
+CoDrone.egg-info/
+dist/
