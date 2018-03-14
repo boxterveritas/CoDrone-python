@@ -2,3 +2,4 @@ build/
 CoDrone.egg-info/
 dist/
 CoDrone/__pycache__/
+setup.py
