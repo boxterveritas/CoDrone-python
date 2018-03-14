@@ -1,7 +1,4 @@
-from CoDrone.system import *
-
 from CoDrone.protocol import *
-
 
 # EventHandler
 class EventHandler:
