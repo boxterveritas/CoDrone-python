@@ -1,5 +1,100 @@
 from enum import Enum
 
+class Flight:
+    def __init__(self, roll, pitch, yaw, throttle):
+        self.ROLL = roll
+        self.PITCH = pitch
+        self.YAW = yaw
+        self.THROTTLE = throttle
+
+class Position:
+    def __init__(self, x, y):
+        self.X = x
+        self.Y = y
+
+class Angle:
+    def __init__(self, roll, pitch, yaw):
+        self.ROLL = roll
+        self.PITCH = pitch
+        self.YAW = yaw
+
+class Axis:
+    def __init__(self, x, y, z):
+        self.X = x
+        self.Y = y
+        self.Z = z
+
+class DroneSequence(Enum):
+    None_ = 0x00
+    SQUARE = 0x01
+    CIRCLE = 0x02
+    SPIRAL = 0x03
+    TRIANGLE = 0x04
+    HOP = 0x05
+    SWAY = 0x06
+    ZIGZAG = 0x07
+    EndOfType = 0x08
+
+
+class Degree(Enum):
+    ANGLE_30 = 30
+    ANGLE_45 = 45
+    ANGLE_60 = 60
+    ANGLE_90 = 90
+    ANGLE_120 = 120
+    ANGLE_135 = 135
+    ANGLE_150 = 150
+    ANGLE_180 = 180
+    ANGLE_210 = 210
+    ANGLE_225 = 225
+    ANGLE_240 = 240
+    ANGLE_270 = 270
+    ANGLE_300 = 300
+    ANGLE_315 = 315
+    ANGLE_330 = 330
+
+class Mode(Enum):
+    None_ = 0x00
+    OFF = 0x10
+    HOLD = 0x11
+    MIX = 0x12
+    BLINKING = 0x13
+    DOUBLE_BLINK = 0x14
+    PULSING = 0x15
+    FLOW = 0x16
+    REVERSE_FLOW = 0x17
+    EndOfType = 0x18
+
+
+
+class ModeFlight(Enum):
+    None_ = 0x00
+    READY = 0x01    # ready
+    TAKE_OFF = 0x02  # take off (change to flight mode automatically)
+    FLIGHT = 0x03   # flight
+    FLIP = 0x04     # not support
+    STOP = 0x05     # force stop(kill switch)
+    LANDING = 0x06  # Landing
+    REVERSE = 0x07  # upside down
+    ACCIDENT = 0x08 # accident (change to ready mode automatically)
+    ERROR = 0x09    # error
+    EndOfType = 0x0A
+
+
+class Direction(Enum):
+    None_ = 0x00
+    LEFT = 0x01
+    FRONT = 0x02
+    RIGHT = 0x03
+    REAR = 0x04
+    TOP = 0x05
+    BOTTOM = 0x06
+    UP = 0x07
+    DOWN = 0x08
+    FORWARD = 0x09
+    BACKWARD = 0x0A
+    EndOfType = 0x0B
+
 
 class DeviceType(Enum):
     None_ = 0x00
@@ -43,7 +138,7 @@ class ModeSystem(Enum):
 
 
 class ModeVehicle(Enum):
-    #mode for CoDrone
+    #mode for CoDronee
     None_ = 0x00
     FlightGuard = 0x10
     FlightNoGuard = 0x11
@@ -52,20 +147,6 @@ class ModeVehicle(Enum):
     DriveFPV = 0x21
     Test = 0x30
     EndOfType = 0x31
-
-
-class ModeFlight(Enum):
-    None_ = 0x00
-    Ready = 0x01    # ready
-    TakeOff = 0x02  # take off (change to flight mode automatically)
-    Flight = 0x03   # flight
-    Flip = 0x04     # not support
-    Stop = 0x05     # force stop(kill switch)
-    Landing = 0x06  # Landing
-    Reverse = 0x07  # upside down
-    Accident = 0x08 # accident (change to ready mode automatically)
-    Error = 0x09    # error
-    EndOfType = 0x0A
 
 
 class ModeDrive(Enum):
@@ -108,7 +189,7 @@ class ModeLinkBroadcast(Enum):
 
     Mute = 0x01  # block data request
     Active = 0x02  # data transport request and some auto thing
-    Passive = 0x03 # reply just request things - no data transport when status is change, 연결 등의 상황에서는 진행 상황 전송
+    Passive = 0x03 # reply just request things - no data transport when status is change
 
     EndOfType = 0x07
 
@@ -178,26 +259,18 @@ class FlightEvent(Enum):
     Reverse = 0x08  # upside down
     Shot = 0x09     # shoot IR missile
     UnderAttack = 0x0A  # be hitted by IR missile
+
     EndOfType = 0x0B
 
 
 class DriveEvent(Enum):
     None_ = 0x00
+
     Stop = 0x01
     Shot = 0x02
     UnderAttack = 0x03
+
     EndOfType = 0x04
-
-
-class Direction(Enum):
-    None_ = 0x00
-    Left = 0x01
-    Front = 0x02
-    Right = 0x03
-    Rear = 0x04
-    Top = 0x05
-    Bottom = 0x06
-    EndOfType = 0x07
 
 
 class SensorOrientation(Enum):

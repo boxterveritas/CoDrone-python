@@ -1,7 +1,8 @@
 import abc
 from struct import *
-from CoDrone.system import *
+from time import time
 
+from CoDrone.system import *
 
 # ISerializable Start
 
@@ -21,10 +22,153 @@ class ISerializable:
 # ISerializable End
 
 
+class EventStatesFunc:
+    def __init__(self):
+        self.upsideDown = None
+        self.takeoff = None
+        self.flying = None
+        self.landing = None
+        self.ready = None
+        self.emergencyStop = None
+        self.lowBattery = None
+
+
+class Timer:
+    def __init__(self):
+        # [ time interval, variable to save start time ]
+        self.address = [0, 0]
+        self.attitude = [0.1, 0]
+        self.battery = [5, 0]
+        self.imu = [0, 0]
+        self.pressure = [3, 0]
+        self.trim = [0, 0]
+        self.range = [0, 0]
+        self.state = [0.1, 0]
+        self.imageFlow = [0, 0]
+
+        # Event states flag
+        self.upsideDown = [5, 0]
+        self.takeoff = [5, 0]
+        self.flying = [10, 0]
+        self.landing = [5, 0]
+        self.ready = [10, 0]
+        self.emergencyStop = [5, 0]
+        self.lowBattery = [10, 0]
+
+
+class Data(EventStatesFunc):
+    def __init__(self, timer):
+        # criterion for low battery
+        self._LowBatteryPercent = 50
+
+        super().__init__()
+        self.timer = timer
+        self.address = 0
+        self.attitude = Angle(0, 0, 0)
+        self.accel = Axis(0, 0, 0)
+        self.batteryPercent = 0
+        self.batteryVoltage = 0
+        self.gyro = Angle(0, 0, 0)
+        self.imageFlow = Position(0, 0)
+        self.pressure = 0
+        self.reversed = 0
+        self.temperature = 0
+        self.trim = Flight(0, 0, 0, 0)
+        self.range = 0
+        self.state = 0
+        self.ack = Ack()
+
+        # Depending on using flight commend
+        self.takeoffFuncFlag = 0
+        self.stopFuncFlag = 0
+
+    def eventUpdateAddress(self, data):
+        self.address = data.address
+        self.timer.address[1] = time()
+
+    def eventUpdateAttitude(self, data):
+        self.attitude = Angle(data.roll, data.pitch, data.yaw)
+        self.timer.address[1] = time.time()
+
+    def eventUpdateBattery(self, data):
+        self.batteryPercent = data.batteryPercent
+        self.batteryVoltage = data.voltage
+        self.timer.battery[1] = time()
+
+    def eventUpdateImu(self, data):
+        self.accel = Axis(data.accelX, data.accelY, data.accelZ)
+        self.gyro = Angle(data.gyroRoll, data.gyroPitch, data.gyroYaw)
+        self.timer.imu[1] = time()
+
+    def eventUpdatePressure(self, data):
+        self.pressure = data.pressure
+        self.temperature = data.temperature
+        self.timer.pressure[1] = time()
+
+    def eventUpdateRange(self, data):
+        self.range = data.bottom
+        self.timer.range[1] = time()
+
+    def eventUpdateState_(self, data):
+        self.reversed = data.sensorOrientation
+        self.batteryPercent = data.battery
+        self.state = data.modeFlight
+        self.timer.state[1] = time()
+
+    def eventUpdateState(self, data):
+        self.reversed = data.sensorOrientation
+        self.batteryPercent = data.battery
+        self.state = data.modeFlight
+        # check Event states flags
+        start_time = time()
+        # automatically checking
+        if self.upsideDown is not None and self.reversed != SensorOrientation.Normal:
+            if start_time - self.timer.upsideDown[1] > self.timer.upsideDown[0]:
+                self.upsideDown()
+                self.timer.upsideDown[1] = start_time
+        if self.lowBattery is not None and self.batteryPercent < self._LowBatteryPercent:
+            if start_time - self.timer.lowBattery[1] > self.timer.lowBattery[0]:
+                self.lowBattery()
+                self.timer.lowBattery[1] = start_time
+        if self.ready is not None and self.state == ModeFlight.READY:
+            if start_time - self.timer.ready[1] > self.timer.ready[0]:
+                self.ready()
+                self.timer.ready[1] = start_time
+                return
+        if self.flying is not None and self.state == ModeFlight.FLIGHT:
+            if start_time - self.timer.flying[1] > self.timer.flying[0]:
+                self.flying()
+                self.timer.flying[1] = start_time
+                return
+        if self.landing is not None and self.state == ModeFlight.LANDING:
+            if start_time - self.timer.landing[1] > self.timer.landing[0]:
+                self.landing()
+                self.timer.landing[1] = start_time
+                return
+        # whenever user executes flight function
+        if self.takeoff is not None and self.takeoffFuncFlag:
+            self.takeoff()
+            self.takeoffFuncFlag = 0
+            return
+        if self.emergencyStop is not None and self.stopFuncFlag:
+            self.emergencyStop()
+            self.stopFuncFlag = 0
+            return
+
+    def eventUpdateTrim(self, data):
+        self.trim = Flight(data.roll, data.pitch, data.yaw, data.throttle)
+        self.timer.trim[1] = time()
+
+    def eventUpdateImageFlow(self, data):
+        self.imageFlow = Position(data.positionX, data.positionY)
+        self.timer.imageFlow[1] = time()
+
+    def eventUpdateAck(self, data):
+        self.ack = data
+
+
 
 # DataType Start
-
-
 class DataType(Enum):
     None_ = 0x00
 
@@ -144,15 +288,15 @@ class CommandType(Enum):
     UpdateCompleteSub = 0x90
     ClearUpdateAreaMain = 0x90
 
-    # LINK 모듈
-    LinkModeBroadcast = 0xE0  # LINK 송수신 모드 전환
-    LinkSystemReset = 0xE1  # 시스템 재시작
-    LinkDiscoverStart = 0xE2  # 장치 검색 시작
-    LinkDiscoverStop = 0xE3  # 장치 검색 중단
-    LinkConnect = 0xE4  # 지정한 인덱스의 장치 연결
-    LinkDisconnect = 0xE5  # 연결 해제
-    LinkRssiPollingStart = 0xE6  # RSSI 수집 시작
-    LinkRssiPollingStop = 0xE7  # RSSI 수집 중단
+    # LINK module
+    LinkModeBroadcast = 0xE0  # convert LINK mode
+    LinkSystemReset = 0xE1  # system reset
+    LinkDiscoverStart = 0xE2  # start searching device
+    LinkDiscoverStop = 0xE3  # stop searching device
+    LinkConnect = 0xE4  # connect with specific named device
+    LinkDisconnect = 0xE5  # disconnect
+    LinkRssiPollingStart = 0xE6  # RSSI polling start
+    LinkRssiPollingStop = 0xE7  # RSSI polling stop
 
     EndOfType = 0xFF
 
@@ -243,7 +387,6 @@ class Ack(ISerializable):
 
         return data
 
-
 class Request(ISerializable):
     def __init__(self):
         self.dataType = DataType.None_
@@ -267,7 +410,6 @@ class Request(ISerializable):
 
         return data
 
-
 class Passcode(ISerializable):
     def __init__(self):
         self.passcode = 0
@@ -290,20 +432,77 @@ class Passcode(ISerializable):
 
         return data
 
-
-class Control(ISerializable):
+class Move():
     def __init__(self):
-        self.roll = 0
-        self.pitch = 0
-        self.yaw = 0
-        self.throttle = 0
+        self._roll = 0
+        self._pitch = 0
+        self._yaw = 0
+        self._throttle = 0
+
+    def _checkValue(self,value):
+        try:
+            value = int(value)
+        except ValueError as err:
+            raise ValueError('only integer values are permitted') from err
+
+        if value > 100:
+            raise ValueError('only under 100 values are permitted')
+        elif value < -100:
+            raise ValueError('only over -100 values are permitted')
+        return value
+
+    def getAll(self):
+        return self._roll,self._pitch, self._yaw, self._throttle
+
+    def setAll(self, roll, pitch, yaw, throttle):
+        self._roll = self._checkValue(roll)
+        self._pitch = self._checkValue(pitch)
+        self._yaw = self._checkValue(yaw)
+        self._throttle = self._checkValue(throttle)
+
+    @property
+    def roll(self):
+        return self._roll
+
+    @roll.setter
+    def roll(self, value):
+        self._roll = self._checkValue(value)
+
+    @property
+    def pitch(self):
+        return self._pitch
+
+    @pitch.setter
+    def pitch(self, value):
+        self._pitch = self._checkValue(value)
+
+    @property
+    def yaw(self):
+        return self._yaw
+
+    @yaw.setter
+    def yaw(self, value):
+        self._yaw = self._checkValue(value)
+
+    @property
+    def throttle(self):
+        return self._throttle
+
+    @throttle.setter
+    def throttle(self, value):
+        self._throttle = self._checkValue(value)
+
+
+class Control(ISerializable, Move):
+    def __init__(self):
+        Move.__init__(self)
 
     @classmethod
     def getSize(cls):
         return 4
 
     def toArray(self):
-        return pack('<bbbb', self.roll, self.pitch, self.yaw, self.throttle)
+        return pack('<bbbb', self._roll, self._pitch, self._yaw, self._throttle)
 
     @classmethod
     def parse(cls, dataArray):
@@ -312,7 +511,7 @@ class Control(ISerializable):
         if len(dataArray) != cls.getSize():
             return None
 
-        data.roll, data.pitch, data.yaw, data.throttle = unpack('<bbbb', dataArray)
+        data._roll, data._pitch, data._yaw, data._throttle = unpack('<bbbb', dataArray)
         return data
 
 
@@ -363,11 +562,11 @@ class Command2(ISerializable):
         if len(dataArray) != cls.getSize():
             return None
 
-        indexStart = 0;
-        indexEnd = Command.getSize();
+        indexStart = 0
+        indexEnd = Command.getSize()
         data.command1 = Command.parse(dataArray[indexStart:indexEnd])
-        indexStart = indexEnd;
-        indexEnd += Command.getSize();
+        indexStart = indexEnd
+        indexEnd += Command.getSize()
         data.command2 = Command.parse(dataArray[indexStart:indexEnd])
         return data
 
@@ -396,14 +595,14 @@ class Command3(ISerializable):
         if len(dataArray) != cls.getSize():
             return None
 
-        indexStart = 0;
-        indexEnd = Command.getSize();
+        indexStart = 0
+        indexEnd = Command.getSize()
         data.command1 = Command.parse(dataArray[indexStart:indexEnd])
-        indexStart = indexEnd;
-        indexEnd += Command.getSize();
+        indexStart = indexEnd
+        indexEnd += Command.getSize()
         data.command2 = Command.parse(dataArray[indexStart:indexEnd])
-        indexStart = indexEnd;
-        indexEnd += Command.getSize();
+        indexStart = indexEnd
+        indexEnd += Command.getSize()
         data.command3 = Command.parse(dataArray[indexStart:indexEnd])
         return data
 
@@ -414,7 +613,6 @@ class Command3(ISerializable):
 
 # Light Start
 
-
 class LightModeDrone(Enum):
     None_ = 0x00
 
@@ -424,6 +622,8 @@ class LightModeDrone(Enum):
     EyeFlicker = 0x13
     EyeFlickerDouble = 0x14
     EyeDimming = 0x15
+
+    EndOfEye = 0x30
 
     ArmNone = 0x40
     ArmHold = 0x41
@@ -656,11 +856,11 @@ class LightMode2(ISerializable):
         if len(dataArray) != cls.getSize():
             return None
 
-        indexStart = 0;
-        indexEnd = LightMode.getSize();
+        indexStart = 0
+        indexEnd = LightMode.getSize()
         data.lightMode1 = LightMode.parse(dataArray[indexStart:indexEnd])
-        indexStart = indexEnd;
-        indexEnd += LightMode.getSize();
+        indexStart = indexEnd
+        indexEnd += LightMode.getSize()
         data.lightMode2 = LightMode.parse(dataArray[indexStart:indexEnd])
         return data
 
@@ -687,11 +887,11 @@ class LightModeCommand(ISerializable):
         if len(dataArray) != cls.getSize():
             return None
 
-        indexStart = 0;
-        indexEnd = LightMode.getSize();
+        indexStart = 0
+        indexEnd = LightMode.getSize()
         data.lightMode = LightMode.parse(dataArray[indexStart:indexEnd])
-        indexStart = indexEnd;
-        indexEnd += Command.getSize();
+        indexStart = indexEnd
+        indexEnd += Command.getSize()
         data.command = Command.parse(dataArray[indexStart:indexEnd])
         return data
 
@@ -720,17 +920,18 @@ class LightModeCommandIr(ISerializable):
         if len(dataArray) != cls.getSize():
             return None
 
-        indexStart = 0;
-        indexEnd = LightMode.getSize();
+        indexStart = 0
+        indexEnd = LightMode.getSize()
         data.lightMode = LightMode.parse(dataArray[indexStart:indexEnd])
-        indexStart = indexEnd;
-        indexEnd += Command.getSize();
+        indexStart = indexEnd
+        indexEnd += Command.getSize()
         data.command = Command.parse(dataArray[indexStart:indexEnd])
-        indexStart = indexEnd;
-        indexEnd += 4;
+        indexStart = indexEnd
+        indexEnd += 4
         data.irData, = unpack('<I', dataArray[indexStart:indexEnd])
 
         return data
+
 
 
 class LightModeColor(ISerializable):
@@ -746,7 +947,7 @@ class LightModeColor(ISerializable):
     def toArray(self):
         dataArray = bytearray()
         dataArray.extend(pack('<B', self.mode.value))
-        dataArray.extend(self.mode.toArray())
+        dataArray.extend(self.color.toArray())
         dataArray.extend(pack('<B', self.interval))
         return dataArray
 
@@ -757,14 +958,14 @@ class LightModeColor(ISerializable):
         if len(dataArray) != cls.getSize():
             return None
 
-        indexStart = 0;
-        indexEnd = 1;
+        indexStart = 0
+        indexEnd = 1
         data.mode = unpack('<B', dataArray[indexStart:indexEnd])
-        indexStart = indexEnd;
-        indexEnd += Color.getSize();
+        indexStart = indexEnd
+        indexEnd += Color.getSize()
         data.color = Color.parse(dataArray[indexStart:indexEnd])
-        indexStart = indexEnd;
-        indexEnd += 1;
+        indexStart = indexEnd
+        indexEnd += 1
         data.interval = unpack('<B', dataArray[indexStart:indexEnd])
 
         data.mode = LightModeDrone(data.mode)
@@ -794,11 +995,11 @@ class LightModeColor2(ISerializable):
         if len(dataArray) != cls.getSize():
             return None
 
-        indexStart = 0;
-        indexEnd = LightModeColor.getSize();
+        indexStart = 0
+        indexEnd = LightModeColor.getSize()
         data.lightModeColor1 = LightModeColor.parse(dataArray[indexStart:indexEnd])
-        indexStart = indexEnd;
-        indexEnd += LightModeColor.getSize();
+        indexStart = indexEnd
+        indexEnd += LightModeColor.getSize()
         data.lightModeColor2 = LightModeColor.parse(dataArray[indexStart:indexEnd])
         return data
 
@@ -853,11 +1054,11 @@ class LightEvent2(ISerializable):
         if len(dataArray) != cls.getSize():
             return None
 
-        indexStart = 0;
-        indexEnd = LightEvent.getSize();
+        indexStart = 0
+        indexEnd = LightEvent.getSize()
         data.lightEvent1 = LightEvent.parse(dataArray[indexStart:indexEnd])
-        indexStart = indexEnd;
-        indexEnd += LightEvent.getSize();
+        indexStart = indexEnd
+        indexEnd += LightEvent.getSize()
         data.lightEvent2 = LightEvent.parse(dataArray[indexStart:indexEnd])
         return data
 
@@ -884,11 +1085,11 @@ class LightEventCommand(ISerializable):
         if len(dataArray) != cls.getSize():
             return None
 
-        indexStart = 0;
-        indexEnd = LightEvent.getSize();
+        indexStart = 0
+        indexEnd = LightEvent.getSize()
         data.lightEvent = LightEvent.parse(dataArray[indexStart:indexEnd])
-        indexStart = indexEnd;
-        indexEnd += Command.getSize();
+        indexStart = indexEnd
+        indexEnd += Command.getSize()
         data.command = Command.parse(dataArray[indexStart:indexEnd])
 
         return data
@@ -918,14 +1119,14 @@ class LightEventCommandIr(ISerializable):
         if len(dataArray) != cls.getSize():
             return None
 
-        indexStart = 0;
-        indexEnd = LightEvent.getSize();
+        indexStart = 0
+        indexEnd = LightEvent.getSize()
         data.lightEvent = LightEvent.parse(dataArray[indexStart:indexEnd])
-        indexStart = indexEnd;
-        indexEnd += Command.getSize();
+        indexStart = indexEnd
+        indexEnd += Command.getSize()
         data.command = Command.parse(dataArray[indexStart:indexEnd])
-        indexStart = indexEnd;
-        indexEnd += 4;
+        indexStart = indexEnd
+        indexEnd += 4
         data.irData, = unpack('<I', dataArray[indexStart:indexEnd])
 
         return data
@@ -957,17 +1158,17 @@ class LightEventColor(ISerializable):
         if len(dataArray) != cls.getSize():
             return None
 
-        indexStart = 0;
-        indexEnd += 1;
+        indexStart = 0
+        indexEnd = 1
         data.event = unpack('<B', dataArray[indexStart:indexEnd])
-        indexStart = indexEnd;
-        indexEnd = LightEvent.getSize();
+        indexStart = indexEnd
+        indexEnd = LightEvent.getSize()
         data.color = Color.parse(dataArray[indexStart:indexEnd])
-        indexStart = indexEnd;
-        indexEnd += 1;
+        indexStart = indexEnd
+        indexEnd += 1
         data.interval = unpack('<B', dataArray[indexStart:indexEnd])
-        indexStart = indexEnd;
-        indexEnd += 1;
+        indexStart = indexEnd
+        indexEnd += 1
         data.repeat = unpack('<B', dataArray[indexStart:indexEnd])
 
         data.event = LightModeDrone(data.event)
@@ -997,11 +1198,11 @@ class LightEventColor2(ISerializable):
         if len(dataArray) != cls.getSize():
             return None
 
-        indexStart = 0;
-        indexEnd = LightEventColor.getSize();
+        indexStart = 0
+        indexEnd = LightEventColor.getSize()
         data.lightEventColor1 = LightEventColor.parse(dataArray[indexStart:indexEnd])
-        indexStart = indexEnd;
-        indexEnd += LightEventColor.getSize();
+        indexStart = indexEnd
+        indexEnd += LightEventColor.getSize()
         data.lightEventColor2 = LightEventColor.parse(dataArray[indexStart:indexEnd])
         return data
 
@@ -1114,19 +1315,16 @@ class GyroBias(Attitude):
     pass
 
 
-class TrimFlight(ISerializable):
+class TrimFlight(ISerializable, Move):
     def __init__(self):
-        self.roll = 0
-        self.pitch = 0
-        self.yaw = 0
-        self.throttle = 0
+        Move.__init__(self)
 
     @classmethod
     def getSize(cls):
         return 8
 
     def toArray(self):
-        return pack('<hhhh', self.roll, self.pitch, self.yaw, self.throttle)
+        return pack('<hhhh', self._roll, self._pitch, self._yaw, self._throttle)
 
     @classmethod
     def parse(cls, dataArray):
@@ -1135,7 +1333,7 @@ class TrimFlight(ISerializable):
         if len(dataArray) != cls.getSize():
             return None
 
-        data.roll, data.pitch, data.yaw, data.throttle = unpack('<hhhh', dataArray)
+        data._roll, data._pitch, data._yaw, data._throttle = unpack('<hhhh', dataArray)
         return data
 
 
@@ -1183,11 +1381,11 @@ class TrimAll(ISerializable):
         if len(dataArray) != cls.getSize():
             return None
 
-        indexStart = 0;
-        indexEnd = TrimFlight.getSize();
+        indexStart = 0
+        indexEnd = TrimFlight.getSize()
         data.flight = TrimFlight.parse(dataArray[indexStart:indexEnd])
-        indexStart = indexEnd;
-        indexEnd += TrimDrive.getSize();
+        indexStart = indexEnd
+        indexEnd += TrimDrive.getSize()
         data.drive = TrimDrive.parse(dataArray[indexStart:indexEnd])
         return data
 
@@ -1467,17 +1665,17 @@ class Motor(ISerializable):
         if len(dataArray) != cls.getSize():
             return None
 
-        indexStart = 0;
-        indexEnd = MotorBlock.getSize();
+        indexStart = 0
+        indexEnd = MotorBlock.getSize()
         data.motor[0] = MotorBlock.parse(dataArray[indexStart:indexEnd])
-        indexStart = indexEnd;
-        indexEnd += MotorBlock.getSize();
+        indexStart = indexEnd
+        indexEnd += MotorBlock.getSize()
         data.motor[1] = MotorBlock.parse(dataArray[indexStart:indexEnd])
-        indexStart = indexEnd;
-        indexEnd += MotorBlock.getSize();
+        indexStart = indexEnd
+        indexEnd += MotorBlock.getSize()
         data.motor[2] = MotorBlock.parse(dataArray[indexStart:indexEnd])
-        indexStart = indexEnd;
-        indexEnd += MotorBlock.getSize();
+        indexStart = indexEnd
+        indexEnd += MotorBlock.getSize()
         data.motor[3] = MotorBlock.parse(dataArray[indexStart:indexEnd])
 
         return data
@@ -1625,11 +1823,11 @@ class Update(ISerializable):
         if len(dataArray) != cls.getSize():
             return None
 
-        indexStart = 0;
-        indexEnd = 1;
+        indexStart = 0
+        indexEnd = 1
         data.indexBlock, = unpack('<H', (dataArray[indexStart:indexEnd]))
-        indexStart = indexEnd;
-        indexEnd += 6;
+        indexStart = indexEnd
+        indexEnd += 6
         data.dataArray = dataArray[indexStart:indexEnd]
 
         return data
@@ -1797,17 +1995,17 @@ class LinkDiscoveredDevice(ISerializable):
         if len(dataArray) != cls.getSize():
             return None
 
-        indexStart = 0;
-        indexEnd = 1;
+        indexStart = 0
+        indexEnd = 1
         data.index, = unpack('<B', (dataArray[indexStart:indexEnd]))
-        indexStart = indexEnd;
-        indexEnd += 6;
+        indexStart = indexEnd
+        indexEnd += 6
         data.address = dataArray[indexStart:indexEnd]
-        indexStart = indexEnd;
-        indexEnd += 20;
+        indexStart = indexEnd
+        indexEnd += 20
         data.name = dataArray[indexStart:indexEnd].decode()
-        indexStart = indexEnd;
-        indexEnd += 1;
+        indexStart = indexEnd
+        indexEnd += 1
         data.rssi, = unpack('<b', (dataArray[indexStart:indexEnd]))
 
         return data
@@ -1867,4 +2065,3 @@ class Message():
         return data
 
 # Message End
-

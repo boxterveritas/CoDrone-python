@@ -43,7 +43,7 @@ class ModeSystem(Enum):
 
 
 class ModeVehicle(Enum):
-    #mode for CoDrone
+    #mode for CoDronee
     None_ = 0x00
     FlightGuard = 0x10
     FlightNoGuard = 0x11

@@ -1,10 +1,9 @@
-import time
+from enum import Enum
+from crc import CRC16
+from time import clock
 
-from CoDrone.crc import CRC16
-
-from CoDrone.protocol import *
-
-
+from CoDrone.protocol import Header
+from CoDrone.protocol import DataType
 
 class StateLoading(Enum):
     Ready = 0x00
@@ -42,7 +41,7 @@ class Receiver:
 
     def call(self, data):
 
-        now = time.clock() * 1000
+        now = clock() * 1000
 
         self.message = None
 
