@@ -1,5 +1,5 @@
 from enum import Enum
-from crc import CRC16
+from CoDrone.crc import CRC16
 from time import clock
 
 from CoDrone.protocol import Header
