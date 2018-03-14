@@ -4,6 +4,9 @@ setup_requires = [
     ]
 
 install_requires = [
+	'pyserial',
+	'numpy',
+	'colorama'
     ]
 
 dependency_links = [
@@ -17,8 +20,8 @@ setup(
     version='1.0',
     description='Python package for CoDrone',
     url='https://github.com/RobolinkInc/CoDrone-python.git',
-    author='robolink',
-    author_email='whoseop@robolink.com',
+    author='Robolink',
+    author_email='info@robolink.com',
     packages=["CoDrone"],
     keywords=['robolink','drone','codrone'],
     include_package_data=True,
