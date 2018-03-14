@@ -8,8 +8,8 @@ from colorama import Fore, Back, Style
 import serial
 from serial.tools.list_ports import comports
 
-from receiver import *
-from storage import *
+from CoDrone.receiver import *
+from CoDrone.storage import *
 
 
 def convertByteArrayToString(dataArray):
@@ -564,6 +564,21 @@ class CoDrone:
                 if i == 4:
                     self._printError(">> Fail to connect.")
         return self._flagConnected
+
+    def disconnect(self):
+        """Disconnect the drone.
+        """
+        header = Header()
+
+        header.dataType = DataType.Command
+        header.length = Command.getSize()
+
+        data = Command()
+
+        data.commandType = CommandType.LinkDisconnect
+        data.option = 0
+
+        return self._transfer(header, data)
 
     ### PUBLIC COMMON -------- END
 
@@ -1551,7 +1566,7 @@ class CoDrone:
     ### FLIGHT SEQUENCES -------- START
 
     def flySequence(self, sequence):
-        """This function makes the drone take off, fly in a given pattern, then land.
+        """This function makes the drone fly in a given pattern, then land.
 
         Args:
             Member values in the Sequence class. Sequence class has SQUARE, CIRCLE, SPIRAL, TRIANGLE, HOP, SWAY, ZIG_ZAG
@@ -1574,10 +1589,8 @@ class CoDrone:
             return None
 
     def flyRoulette(self):
-        """This function makes the drone take off, yaw for a random number of seconds between 5 and 10, then pitch forward in that direction.
+        """This function makes yaw for a random number of seconds between 5 and 10, then pitch forward in that direction.
         """
-        if self.getState() != ModeFlight.FLIGHT:
-            self.takeoff()
 
         self.turn(Direction.RIGHT, 5 + (self.timeStartProgram % 5), 30)
         self.go(Direction.FORWARD, 1)
@@ -1588,11 +1601,9 @@ class CoDrone:
         """If the drone is in the upside down state.
         This function makes the drone turn right side up by spinning the right two propellers
         """
-        self.go(Direction.LEFT, 1, 100)
+        self.go(Direction.UP, 1, 100)
 
     def flySquare(self):
-        if self.getState() != ModeFlight.FLIGHT:
-            self.takeoff()
 
         self.go(Direction.RIGHT, 1, 50)
         self.go(Direction.FORWARD, 1, 50)
@@ -1602,15 +1613,13 @@ class CoDrone:
         self.hover(1)
 
     def flyCircle(self):
-        if self.getState() != ModeFlight.FLIGHT:
-            self.takeoff()
 
         power = -50
         yaw = self.getAngularSpeed().YAW
         degree = -360 + yaw
 
-        startTime = time.time()
-        while (time.time() - startTime) < 15:
+        startTime = time()
+        while (time() - startTime) < 15:
             if abs(yaw - self._data.attitude.YAW) > 180:
                 degree += 360
             yaw = self._data.attitude.YAW
@@ -1623,8 +1632,6 @@ class CoDrone:
         self.hover(1)
 
     def flySpiral(self):
-        if self.getState() != ModeFlight.FLIGHT:
-            self.takeoff()
 
         for i in range(5):
             self.sendControl(10, 0, -50, -i * 2)
@@ -1633,8 +1640,6 @@ class CoDrone:
         self.hover(1)
 
     def flyTriangle(self):
-        if self.getState() != ModeFlight.FLIGHT:
-            self.takeoff()
 
         self.turnDegree(Direction.RIGHT, Degree.ANGLE_30)
         self.hover(3)
@@ -1647,8 +1652,6 @@ class CoDrone:
         self.hover(1)
 
     def flyHop(self):
-        if self.getState() != ModeFlight.FLIGHT:
-            self.takeoff()
 
         self.sendControlDuration(0, 30, 0, 50, 1)
         self.sendControlDuration(0, 30, 0, -50, 1)
@@ -1656,8 +1659,6 @@ class CoDrone:
         self.hover(1)
 
     def flySway(self):
-        if self.getState() != ModeFlight.FLIGHT:
-            self.takeoff()
 
         for i in range(2):
             self.go(Direction.LEFT, 1, 50)
@@ -1666,8 +1667,6 @@ class CoDrone:
         self.hover(1)
 
     def flyZigzag(self):
-        if self.getState() != ModeFlight.FLIGHT:
-            self.takeoff()
 
         for i in range(2):
             self.move(1, 50, 50, 0, 0)

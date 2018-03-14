@@ -2,8 +2,8 @@ from enum import Enum
 from crc import CRC16
 from time import clock
 
-from protocol import Header
-from protocol import DataType
+from CoDrone.protocol import Header
+from CoDrone.protocol import DataType
 
 class StateLoading(Enum):
     Ready = 0x00

@@ -2,7 +2,7 @@ import abc
 from struct import *
 from time import time
 
-from system import *
+from CoDrone.system import *
 
 # ISerializable Start
 
@@ -288,15 +288,15 @@ class CommandType(Enum):
     UpdateCompleteSub = 0x90
     ClearUpdateAreaMain = 0x90
 
-    # LINK 모듈
-    LinkModeBroadcast = 0xE0  # LINK 송수신 모드 전환
-    LinkSystemReset = 0xE1  # 시스템 재시작
-    LinkDiscoverStart = 0xE2  # 장치 검색 시작
-    LinkDiscoverStop = 0xE3  # 장치 검색 중단
-    LinkConnect = 0xE4  # 지정한 인덱스의 장치 연결
-    LinkDisconnect = 0xE5  # 연결 해제
-    LinkRssiPollingStart = 0xE6  # RSSI 수집 시작
-    LinkRssiPollingStop = 0xE7  # RSSI 수집 중단
+    # LINK module
+    LinkModeBroadcast = 0xE0  # convert LINK mode
+    LinkSystemReset = 0xE1  # system reset
+    LinkDiscoverStart = 0xE2  # start searching device
+    LinkDiscoverStop = 0xE3  # stop searching device
+    LinkConnect = 0xE4  # connect with specific named device
+    LinkDisconnect = 0xE5  # disconnect
+    LinkRssiPollingStart = 0xE6  # RSSI polling start
+    LinkRssiPollingStop = 0xE7  # RSSI polling stop
 
     EndOfType = 0xFF
 

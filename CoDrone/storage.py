@@ -1,4 +1,4 @@
-from protocol import *
+from CoDrone.protocol import *
 
 # EventHandler
 class EventHandler:

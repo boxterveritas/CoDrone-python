@@ -45,7 +45,13 @@ class Degree(Enum):
     ANGLE_135 = 135
     ANGLE_150 = 150
     ANGLE_180 = 180
-
+    ANGLE_210 = 210
+    ANGLE_225 = 225
+    ANGLE_240 = 240
+    ANGLE_270 = 270
+    ANGLE_300 = 300
+    ANGLE_315 = 315
+    ANGLE_330 = 330
 
 class Mode(Enum):
     None_ = 0x00
@@ -183,7 +189,7 @@ class ModeLinkBroadcast(Enum):
 
     Mute = 0x01  # block data request
     Active = 0x02  # data transport request and some auto thing
-    Passive = 0x03 # reply just request things - no data transport when status is change, 연결 등의 상황에서는 진행 상황 전송
+    Passive = 0x03 # reply just request things - no data transport when status is change
 
     EndOfType = 0x07
 
