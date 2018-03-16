@@ -1,6 +1,5 @@
 import abc
 from struct import *
-from time import time
 
 from CoDrone.system import *
 
