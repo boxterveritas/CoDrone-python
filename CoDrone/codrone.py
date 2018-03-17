@@ -944,7 +944,7 @@ class CoDrone:
         power = 20
         bias = 3
 
-        yawPast = self.getAngularSpeed().YAW
+        yawPast = self.getGyroAngles().YAW
         direction = ((direction == Direction.RIGHT) - (direction == Direction.LEFT))  # right = 1 / left = -1
         degreeGoal = direction * (degree.value - bias) + yawPast
 
@@ -972,7 +972,7 @@ class CoDrone:
         power = 20
         bias = 3
 
-        yawPast = self.getAngularSpeed().YAW
+        yawPast = self.getGyroAngles().YAW
         degreeGoal = 180 - bias + yawPast
 
         start_time = time()
@@ -1400,7 +1400,7 @@ class CoDrone:
         data.color.b = blue
         data.interval = self._LEDInterval
 
-        self._checkAck(header, data, 0.06, 0.3, 3)
+        self._checkAck(header, data, 0.06, 0.4, 3)
 
     def setEyeDefaultRGB(self, red, green, blue):
         """This function sets the default LED color of the eyes.
@@ -1430,7 +1430,7 @@ class CoDrone:
         data.color.b = blue
         data.interval = self._LEDInterval
 
-        self._checkAck(header, data, 0.06, 0.3, 3)
+        self._checkAck(header, data, 0.06, 0.4, 3)
 
     def resetDefaultLED(self):
         """This function sets the LED color of the eyes and arms back to red, which is the original default color.
@@ -1447,10 +1447,10 @@ class CoDrone:
         data.color.b = 0
         data.interval = self._LEDInterval
 
-        self._checkAck(header, data, 0.06, 0.3, 3)
+        self._checkAck(header, data, 0.06, 0.4, 3)
 
         data.mode = LightModeDrone.ArmHold
-        self._checkAck(header, data, 0.06, 0.3, 3)
+        self._checkAck(header, data, 0.06, 0.4, 3)
 
     def setEyeMode(self, mode):
         """This function sets the LED light mode of the eyes to behave in different patterns.
@@ -1532,7 +1532,7 @@ class CoDrone:
         data.color.r, data.color.g, data.color.b = self._LEDColor
         data.interval = self._LEDInterval
 
-        self._checkAck(header, data, 0.06, 0.3, 3)
+        self._checkAck(header, data, 0.06, 0.4, 3)
 
     def setArmDefaultMode(self, mode):
         """This function sets the LED light default mode of the arms to behave in different patterns.
@@ -1571,19 +1571,19 @@ class CoDrone:
         Args:
             Member values in the Sequence class. Sequence class has SQUARE, CIRCLE, SPIRAL, TRIANGLE, HOP, SWAY, ZIG_ZAG
         """
-        if sequence == DroneSequence.SQUARE:
+        if sequence == Sequence.SQUARE:
             self.flySquare()
-        elif sequence == DroneSequence.CIRCLE:
+        elif sequence == Sequence.CIRCLE:
             self.flyCircle()
-        elif sequence == DroneSequence.SPIRAL:
+        elif sequence == Sequence.SPIRAL:
             self.flySpiral()
-        elif sequence == DroneSequence.TRIANGLE:
+        elif sequence == Sequence.TRIANGLE:
             self.flyTriangle()
-        elif sequence == DroneSequence.HOP:
+        elif sequence == Sequence.HOP:
             self.flyHop()
-        elif sequence == DroneSequence.SWAY:
+        elif sequence == Sequence.SWAY:
             self.flySway()
-        elif sequence == DroneSequence.ZIGZAG:
+        elif sequence == Sequence.ZIGZAG:
             self.flyZigzag()
         else:
             return None
@@ -1605,17 +1605,17 @@ class CoDrone:
 
     def flySquare(self):
 
-        self.go(Direction.RIGHT, 1, 50)
-        self.go(Direction.FORWARD, 1, 50)
-        self.go(Direction.LEFT, 1, 50)
-        self.go(Direction.BACKWARD, 1, 50)
+        self.go(Direction.RIGHT, 2, 30)
+        self.go(Direction.FORWARD, 2, 30)
+        self.go(Direction.LEFT, 2, 30)
+        self.go(Direction.BACKWARD, 2, 30)
 
         self.hover(1)
 
     def flyCircle(self):
 
         power = -50
-        yaw = self.getAngularSpeed().YAW
+        yaw = self.getGyroAngles().YAW
         degree = -360 + yaw
 
         startTime = time()
@@ -1642,12 +1642,11 @@ class CoDrone:
     def flyTriangle(self):
 
         self.turnDegree(Direction.RIGHT, Degree.ANGLE_30)
-        self.hover(3)
-        self.go(Direction.FORWARD, 1)
+        self.go(Direction.FORWARD, 2, 30)
         self.turnDegree(Direction.LEFT, Degree.ANGLE_120)
-        self.go(Direction.FORWARD, 1)
+        self.go(Direction.FORWARD, 2, 30)
         self.turnDegree(Direction.LEFT, Degree.ANGLE_120)
-        self.go(Direction.FORWARD, 1)
+        self.go(Direction.FORWARD, 2, 30)
 
         self.hover(1)
 
@@ -1824,4 +1823,571 @@ class CoDrone:
 
         return self._storageCount.d[dataType]
 
-drone = CoDrone()
+
+    ### LEGACY CODE -------- START
+
+    def sendTakeOff(self):
+
+        header = Header()
+
+        header.dataType = DataType.Command
+        header.length = Command.getSize()
+
+        data = Command()
+
+        data.commandType = CommandType.FlightEvent
+        data.option = FlightEvent.TakeOff.value
+
+        return self._transfer(header, data)
+
+    def sendLanding(self):
+
+        header = Header()
+
+        header.dataType = DataType.Command
+        header.length = Command.getSize()
+
+        data = Command()
+
+        data.commandType = CommandType.FlightEvent
+        data.option = FlightEvent.Landing.value
+
+        return self._transfer(header, data)
+
+    def sendStop(self):
+
+        header = Header()
+
+        header.dataType = DataType.Command
+        header.length = Command.getSize()
+
+        data = Command()
+
+        data.commandType = CommandType.Stop
+        data.option = 0
+
+        return self._transfer(header, data)
+
+    def sendControlWhile(self, roll, pitch, yaw, throttle, timeMs):
+
+        if ((not isinstance(roll, int)) or (not isinstance(pitch, int)) or (not isinstance(yaw, int)) or (
+        not isinstance(throttle, int))):
+            return None
+
+        timeSec = timeMs / 1000
+        timeStart = time()
+
+        while ((time() - timeStart) < timeSec):
+            self.sendControl(roll, pitch, yaw, throttle)
+            sleep(0.02)
+
+        return self.sendControl(roll, pitch, yaw, throttle)
+
+    def sendControlDrive(self, wheel, accel):
+
+        if ((not isinstance(wheel, int)) or (not isinstance(accel, int))):
+            return None
+
+        header = Header()
+
+        header.dataType = DataType.Control
+        header.length = Control.getSize()
+
+        data = Control()
+
+        data.roll = accel
+        data.pitch = 0
+        data.yaw = 0
+        data.throttle = wheel
+
+        return self._transfer(header, data)
+
+    def sendControlDriveWhile(self, wheel, accel, timeMs):
+
+        if ((not isinstance(wheel, int)) or (not isinstance(accel, int))):
+            return None
+
+        timeSec = timeMs / 1000
+        timeStart = time()
+
+        while ((time() - timeStart) < timeSec):
+            self.sendControlDrive(wheel, accel)
+            sleep(0.02)
+
+        return self.sendControlDrive(wheel, accel)
+
+    # Control End
+
+
+
+    # Setup Start
+
+
+    def sendCommand(self, commandType, option=0):
+
+        if ((not isinstance(commandType, CommandType)) or (not isinstance(option, int))):
+            return None
+
+        header = Header()
+
+        header.dataType = DataType.Command
+        header.length = Command.getSize()
+
+        data = Command()
+
+        data.commandType = commandType
+        data.option = option
+
+        return self._transfer(header, data)
+
+    def sendModeVehicle(self, modeVehicle):
+
+        if (not isinstance(modeVehicle, ModeVehicle)):
+            return None
+
+        header = Header()
+
+        header.dataType = DataType.Command
+        header.length = Command.getSize()
+
+        data = Command()
+
+        data.commandType = CommandType.ModeVehicle
+        data.option = modeVehicle.value
+
+        return self._transfer(header, data)
+
+    def sendHeadless(self, headless):
+
+        if (not isinstance(headless, Headless)):
+            return None
+
+        header = Header()
+
+        header.dataType = DataType.Command
+        header.length = Command.getSize()
+
+        data = Command()
+
+        data.commandType = CommandType.Headless
+        data.option = headless.value
+
+        return self._transfer(header, data)
+
+    def sendTrim(self, trim):
+
+        if ((not isinstance(trim, Trim))):
+            return None
+
+        header = Header()
+
+        header.dataType = DataType.Command
+        header.length = Command.getSize()
+
+        data = Command()
+
+        data.commandType = CommandType.Trim
+        data.option = trim.value
+
+        return self._transfer(header, data)
+
+    def sendTrimFlight(self, roll, pitch, yaw, throttle):
+
+        if ((not isinstance(roll, int)) or (not isinstance(pitch, int)) or (not isinstance(yaw, int)) or (
+        not isinstance(throttle, int))):
+            return None
+
+        header = Header()
+
+        header.dataType = DataType.TrimFlight
+        header.length = TrimFlight.getSize()
+
+        data = TrimFlight()
+
+        data.roll = roll
+        data.pitch = pitch
+        data.yaw = yaw
+        data.throttle = throttle
+
+        return self._transfer(header, data)
+
+    def sendTrimDrive(self, wheel):
+
+        if (not isinstance(wheel, int)):
+            return None
+
+        header = Header()
+
+        header.dataType = DataType.TrimDrive
+        header.length = TrimDrive.getSize()
+
+        data = TrimDrive()
+
+        data.wheel = wheel
+
+        return self._transfer(header, data)
+
+    def sendFlightEvent(self, flightEvent):
+
+        if ((not isinstance(flightEvent, FlightEvent))):
+            return None
+
+        header = Header()
+
+        header.dataType = DataType.Command
+        header.length = Command.getSize()
+
+        data = Command()
+
+        data.commandType = CommandType.FlightEvent
+        data.option = flightEvent.value
+
+        return self._transfer(header, data)
+
+    def sendDriveEvent(self, driveEvent):
+
+        if ((not isinstance(driveEvent, DriveEvent))):
+            return None
+
+        header = Header()
+
+        header.dataType = DataType.Command
+        header.length = Command.getSize()
+
+        data = Command()
+
+        data.commandType = CommandType.DriveEvent
+        data.option = driveEvent.value
+
+        return self._transfer(header, data)
+
+    def sendClearTrim(self):
+
+        header = Header()
+
+        header.dataType = DataType.Command
+        header.length = Command.getSize()
+
+        data = Command()
+
+        data.commandType = CommandType.ClearTrim
+        data.option = 0
+
+        return self._transfer(header, data)
+
+    def sendClearGyroBias(self):
+
+        header = Header()
+
+        header.dataType = DataType.Command
+        header.length = Command.getSize()
+
+        data = Command()
+
+        data.commandType = CommandType.ClearGyroBias
+        data.option = 0
+
+        return self._transfer(header, data)
+
+    def sendUpdateLookupTarget(self, deviceType):
+
+        if ((not isinstance(deviceType, DeviceType))):
+            return None
+
+        header = Header()
+
+        header.dataType = DataType.UpdateLookupTarget
+        header.length = UpdateLookupTarget.getSize()
+
+        data = UpdateLookupTarget()
+
+        data.deviceType = deviceType
+
+        return self._transfer(header, data)
+
+    # Setup End
+
+
+
+    # Device Start
+
+    def sendMotor(self, motor0, motor1, motor2, motor3):
+
+        if ((not isinstance(motor0, int)) or
+                (not isinstance(motor1, int)) or
+                (not isinstance(motor2, int)) or
+                (not isinstance(motor3, int))):
+            return None
+
+        header = Header()
+
+        header.dataType = DataType.Motor
+        header.length = Motor.getSize()
+
+        data = Motor()
+
+        data.motor[0].forward = motor0
+        data.motor[0].reverse = 0
+
+        data.motor[1].forward = motor1
+        data.motor[1].reverse = 0
+
+        data.motor[2].forward = motor2
+        data.motor[2].reverse = 0
+
+        data.motor[3].forward = motor3
+        data.motor[3].reverse = 0
+
+        return self._transfer(header, data)
+
+    def sendIrMessage(self, value):
+
+        if ((not isinstance(value, int))):
+            return None
+
+        header = Header()
+
+        header.dataType = DataType.IrMessage
+        header.length = IrMessage.getSize()
+
+        data = IrMessage()
+
+        data.irData = value
+
+        return self._transfer(header, data)
+
+    # Device End
+
+
+
+    # Light Start
+
+
+    def sendLightMode(self, lightMode, colors, interval):
+
+        if (((not isinstance(lightMode, LightMode))) or
+                (not isinstance(interval, int)) or
+                (not isinstance(colors, Colors))):
+            return None
+
+        header = Header()
+
+        header.dataType = DataType.LightMode
+        header.length = LightMode.getSize()
+
+        data = LightMode()
+
+        data.mode = lightMode
+        data.colors = colors
+        data.interval = interval
+
+        return self._transfer(header, data)
+
+    def sendLightModeCommand(self, lightMode, colors, interval, commandType, option):
+
+        if (((not isinstance(lightMode, LightMode))) or
+                (not isinstance(interval, int)) or
+                (not isinstance(colors, Colors)) or
+                (not isinstance(commandType, CommandType)) or
+                (not isinstance(option, int))):
+            return None
+
+        header = Header()
+
+        header.dataType = DataType.LightModeCommand
+        header.length = LightModeCommand.getSize()
+
+        data = LightModeCommand()
+
+        data.lightMode.mode = lightMode
+        data.lightMode.colors = colors
+        data.lightMode.interval = interval
+
+        data.command.commandType = commandType
+        data.command.option = option
+
+        return self._transfer(header, data)
+
+    def sendLightModeCommandIr(self, lightMode, interval, colors, commandType, option, irData):
+
+        if (((not isinstance(lightMode, LightMode))) or
+                (not isinstance(interval, int)) or
+                (not isinstance(colors, Colors)) or
+                (not isinstance(commandType, CommandType)) or
+                (not isinstance(option, int)) or
+                (not isinstance(irData, int))):
+            return None
+
+        header = Header()
+
+        header.dataType = DataType.LightModeCommandIr
+        header.length = LightModeCommandIr.getSize()
+
+        data = LightModeCommandIr()
+
+        data.lightMode.mode = lightMode
+        data.lightMode.colors = colors
+        data.lightMode.interval = interval
+
+        data.command.commandType = commandType
+        data.command.option = option
+
+        data.irData = irData
+
+        return self._transfer(header, data)
+
+    def sendLightModeColor(self, lightMode, r, g, b, interval):
+
+        if ((not isinstance(lightMode, LightMode)) or
+                (not isinstance(r, int)) or
+                (not isinstance(g, int)) or
+                (not isinstance(b, int)) or
+                (not isinstance(interval, int))):
+            return None
+
+        header = Header()
+
+        header.dataType = DataType.LightModeColor
+        header.length = LightModeColor.getSize()
+
+        data = LightModeColor()
+
+        data.mode = lightMode
+        data.color.r = r
+        data.color.g = g
+        data.color.b = b
+        data.interval = interval
+
+        return self._transfer(header, data)
+
+    def sendLightEvent(self, lightEvent, colors, interval, repeat):
+
+        if (((not isinstance(lightEvent, LightMode))) or
+                (not isinstance(colors, Colors)) or
+                (not isinstance(interval, int)) or
+                (not isinstance(repeat, int))):
+            return None
+
+        header = Header()
+
+        header.dataType = DataType.LightEvent
+        header.length = LightEvent.getSize()
+
+        data = LightEvent()
+
+        data.event = lightEvent
+        data.colors = colors
+        data.interval = interval
+        data.repeat = repeat
+
+        return self._transfer(header, data)
+
+    def sendLightEventCommand(self, lightEvent, colors, interval, repeat, commandType, option):
+
+        if (((not isinstance(lightEvent, LightMode))) or
+                (not isinstance(colors, Colors)) or
+                (not isinstance(interval, int)) or
+                (not isinstance(repeat, int)) or
+                (not isinstance(commandType, CommandType)) or
+                (not isinstance(option, int))):
+            return None
+
+        header = Header()
+
+        header.dataType = DataType.LightEventCommand
+        header.length = LightEventCommand.getSize()
+
+        data = LightEventCommand()
+
+        data.lightEvent.event = lightEvent
+        data.lightEvent.colors = colors
+        data.lightEvent.interval = interval
+        data.lightEvent.repeat = repeat
+
+        data.command.commandType = commandType
+        data.command.option = option
+
+        return self._transfer(header, data)
+
+    def sendLightEventCommandIr(self, lightEvent, colors, interval, repeat, commandType, option, irData):
+
+        if (((not isinstance(lightEvent, LightMode))) or
+                (not isinstance(colors, Colors)) or
+                (not isinstance(interval, int)) or
+                (not isinstance(repeat, int)) or
+                (not isinstance(commandType, CommandType)) or
+                (not isinstance(option, int)) or
+                (not isinstance(irData, int))):
+            return None
+
+        header = Header()
+
+        header.dataType = DataType.LightEventCommandIr
+        header.length = LightEventCommandIr.getSize()
+
+        data = LightEventCommandIr()
+
+        data.lightEvent.event = lightEvent
+        data.lightEvent.colors = colors
+        data.lightEvent.interval = interval
+        data.lightEvent.repeat = repeat
+
+        data.command.commandType = commandType
+        data.command.option = option
+
+        data.irData = irData
+
+        return self._transfer(header, data)
+
+    def sendLightEventColor(self, lightEvent, r, g, b, interval, repeat):
+
+        if (((not isinstance(lightEvent, LightMode))) or
+                (not isinstance(r, int)) or
+                (not isinstance(g, int)) or
+                (not isinstance(b, int)) or
+                (not isinstance(interval, int)) or
+                (not isinstance(repeat, int))):
+            return None
+
+        header = Header()
+
+        header.dataType = DataType.LightEventColor
+        header.length = LightEventColor.getSize()
+
+        data = LightEventColor()
+
+        data.event = lightEvent.mode
+        data.color.r = r
+        data.color.g = g
+        data.color.b = b
+        data.interval = interval
+        data.repeat = repeat
+
+        return self._transfer(header, data)
+
+    def sendLightModeDefaultColor(self, lightMode, r, g, b, interval):
+
+        if ((not isinstance(lightMode, LightMode)) or
+                (not isinstance(r, int)) or
+                (not isinstance(g, int)) or
+                (not isinstance(b, int)) or
+                (not isinstance(interval, int))):
+            return None
+
+        header = Header()
+
+        header.dataType = DataType.LightModeDefaultColor
+        header.length = LightModeDefaultColor.getSize()
+
+        data = LightModeDefaultColor()
+
+        data.mode = lightMode
+        data.color.r = r
+        data.color.g = g
+        data.color.b = b
+        data.interval = interval
+
+        return self._transfer(header, data)
+
+    # Light End
+    ### LEGACY CODE -------- END

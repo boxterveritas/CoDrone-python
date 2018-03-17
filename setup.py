@@ -17,7 +17,7 @@ this is Python package for control Codrone
 
 setup(
     name='CoDrone',
-    version='1.0',
+    version='1.1',
     description='Python package for CoDrone',
     url='https://github.com/RobolinkInc/CoDrone-python.git',
     author='Robolink',
