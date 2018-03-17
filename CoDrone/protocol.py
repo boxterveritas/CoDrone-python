@@ -88,7 +88,7 @@ class Data(EventStatesFunc):
 
     def eventUpdateAttitude(self, data):
         self.attitude = Angle(data.roll, data.pitch, data.yaw)
-        self.timer.address[1] = time.time()
+        self.timer.address[1] = time()
 
     def eventUpdateBattery(self, data):
         self.batteryPercent = data.batteryPercent
@@ -165,7 +165,6 @@ class Data(EventStatesFunc):
 
     def eventUpdateAck(self, data):
         self.ack = data
-
 
 
 # DataType Start

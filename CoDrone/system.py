@@ -24,7 +24,7 @@ class Axis:
         self.Y = y
         self.Z = z
 
-class DroneSequence(Enum):
+class Sequence(Enum):
     None_ = 0x00
     SQUARE = 0x01
     CIRCLE = 0x02
@@ -53,6 +53,7 @@ class Degree(Enum):
     ANGLE_315 = 315
     ANGLE_330 = 330
 
+
 class Mode(Enum):
     None_ = 0x00
     OFF = 0x10
@@ -64,7 +65,6 @@ class Mode(Enum):
     FLOW = 0x16
     REVERSE_FLOW = 0x17
     EndOfType = 0x18
-
 
 
 class ModeFlight(Enum):
