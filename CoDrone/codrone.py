@@ -610,6 +610,7 @@ class CoDrone:
         Returns: True if responds well, false otherwise.
         """
         if not isinstance(dataType, DataType):
+            self._printError(">>> Parameter Type Error")    # print error message
             return None
 
         header = Header()
@@ -881,14 +882,14 @@ class CoDrone:
         else:                   # move(duration, roll, pitch, yaw, throttle)
             self.sendControlDuration(roll, pitch, yaw, throttle, duration)
 
-    def go(self, direction, duration=0.5, power=50):
+    def go(self, direction, duration=0, power=50):
         """A simpler Junior level function that represents positive flight with a direction, but with more natural language.
         It simply flies forward for the given duration and power.
 
         Args:
             direction: member values in the Direction enum class which can be one of the following: FORWARD, BACKWARD, LEFT, RIGHT, UP, and DOWN.
             duration: the duration of the flight motion in seconds.
-                If 0, it will turn right indefinitely. Defaults to 0.5 seconds if not defined.
+                If 0, it will turn right indefinitely. Defaults to infinite if not defined.
             power: the power at which the drone flies. Takes a value from 0 to 100. Defaults to 50 if not defined.
 
         Examples:
@@ -904,7 +905,7 @@ class CoDrone:
 
         self.sendControlDuration(roll, pitch, yaw, throttle, duration)
 
-    def turn(self, direction, duration=0.5, power=50):
+    def turn(self, direction, duration=0, power=50):
         """A simpler Junior level function that represents yaw, but with more natural language.
         It simply turns in the given direction, duration and power.
 
@@ -939,6 +940,7 @@ class CoDrone:
             >>> turnDegree(Direction.LEFT, Degree.ANGLE_30)    # turn left 30 degrees
         """
         if not isinstance(direction, Direction) or not isinstance(degree, Degree):
+            self._printError(">>> Parameter Type Error")    # print error message
             return None
 
         power = 20
@@ -1292,6 +1294,7 @@ class CoDrone:
         if ((not isinstance(red, int)) or
                 (not isinstance(green, int)) or
                 (not isinstance(blue, int))):
+            self._printError(">>> Parameter Type Error")    # print error message
             return None
 
         header = Header()
@@ -1321,6 +1324,7 @@ class CoDrone:
         if ((not isinstance(red, int)) or
                 (not isinstance(green, int)) or
                 (not isinstance(blue, int))):
+            self._printError(">>> Parameter Type Error")    # print error message
             return None
 
         header = Header()
@@ -1350,6 +1354,7 @@ class CoDrone:
         if ((not isinstance(red, int)) or
                 (not isinstance(green, int)) or
                 (not isinstance(blue, int))):
+            self._printError(">>> Parameter Type Error")    # print error message
             return None
 
         header = Header()
@@ -1385,6 +1390,7 @@ class CoDrone:
         if ((not isinstance(red, int)) or
                 (not isinstance(green, int)) or
                 (not isinstance(blue, int))):
+            self._printError(">>> Parameter Type Error")    # print error message
             return None
 
         header = Header()
@@ -1415,6 +1421,7 @@ class CoDrone:
         if ((not isinstance(red, int)) or
                 (not isinstance(green, int)) or
                 (not isinstance(blue, int))):
+            self._printError(">>> Parameter Type Error")    # print error message
             return None
 
         header = Header()
@@ -1462,7 +1469,8 @@ class CoDrone:
             >>> setEyeMode(Mode.HOLD)
         """
         # EYE doesn't have flow mode
-        if not isinstance(mode, Mode) or mode.value > Mode.PULSING.value:
+        if not isinstance(mode, Mode) or mode.value > Mode.DIMMING.value:
+            self._printError(">>> Parameter Type Error")    # print error message
             return None
 
         self._LEDEyeMode = mode
@@ -1484,12 +1492,13 @@ class CoDrone:
         """This function sets the LED light mode of the arms to behave in different patterns.
 
         Args:
-            Member values in the Mode enum class. Mode class has NONE,HOLD, MIX, FLICKER, FLICKER_DOUBLE, DIMMING
+            Member values in the Mode enum class. Mode class has NONE,HOLD, MIX, FLICKER, FLICKER_DOUBLE, DIMMING, FLOW, FLOW_REVERSE
 
         Examples:
             >>> setArmMode(Mode.HOLD)
         """
         if not isinstance(mode, Mode):
+            self._printError(">>> Parameter Type Error")  # print error message
             return None
 
         self._LEDArmMode = LightModeDrone(mode.value + 0x30)
@@ -1517,7 +1526,8 @@ class CoDrone:
             >>> setEyeDefaultMode(Mode.HOLD)
         """
         # EYE doesn't have flow mode
-        if not isinstance(mode, Mode) or mode.value > Mode.PULSING.value:
+        if not isinstance(mode, Mode) or mode.value > Mode.DIMMING.value:
+            self._printError(">>> Parameter Type Error")  # print error message
             return None
 
         self._LEDEyeMode = mode
@@ -1538,12 +1548,13 @@ class CoDrone:
         """This function sets the LED light default mode of the arms to behave in different patterns.
 
         Args:
-            Member values in the Mode enum class. Mode class has NONE,HOLD, MIX, FLICKER, FLICKER_DOUBLE, DIMMING
+            Member values in the Mode enum class. Mode class has NONE,HOLD, MIX, FLICKER, FLICKER_DOUBLE, DIMMING, FLOW, FLOW_REVERSE
 
         Examples:
             >>> setArmDefaultMode(Mode.HOLD)
         """
         if not isinstance(mode, Mode):
+            self._printError(">>> Parameter Type Error")    # print error message
             return None
 
         self._LEDArmMode = LightModeDrone(mode.value + 0x30)
@@ -1680,6 +1691,7 @@ class CoDrone:
 
     def sendLinkModeBroadcast(self, modeLinkBroadcast):
         if (not isinstance(modeLinkBroadcast, ModeLinkBroadcast)):
+            self._printError(">>> Parameter Type Error")    # print error message
             return None
 
         header = Header()
@@ -1739,6 +1751,7 @@ class CoDrone:
     def sendLinkConnect(self, index):
 
         if (not isinstance(index, int)):
+            self._printError(">>> Parameter Type Error")    # print error message
             return None
 
         header = Header()
@@ -1806,12 +1819,14 @@ class CoDrone:
 
     def getHeader(self, dataType):
         if (not isinstance(dataType, DataType)):
+            self._printError(">>> Parameter Type Error")    # print error message
             return None
 
         return self._storageHeader.d[dataType]
 
     def getData(self, dataType):
         if (not isinstance(dataType, DataType)):
+            self._printError(">>> Parameter Type Error")    # print error message
             return None
 
         return self._storage.d[dataType]
@@ -1819,6 +1834,7 @@ class CoDrone:
     def getCount(self, dataType):
 
         if (not isinstance(dataType, DataType)):
+            self._printError(">>> Parameter Type Error")    # print error message
             return None
 
         return self._storageCount.d[dataType]

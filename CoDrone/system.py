@@ -59,11 +59,11 @@ class Mode(Enum):
     OFF = 0x10
     HOLD = 0x11
     MIX = 0x12
-    BLINKING = 0x13
-    DOUBLE_BLINK = 0x14
-    PULSING = 0x15
+    FLICKER = 0x13
+    FLICKER_DOUBLE = 0x14
+    DIMMING = 0x15
     FLOW = 0x16
-    REVERSE_FLOW = 0x17
+    FLOW_REVERSE = 0x17
     EndOfType = 0x18
 
 
