@@ -1,7 +1,6 @@
 import abc
 from struct import *
-from time import time
-
+import time
 from CoDrone.system import *
 
 # ISerializable Start
@@ -15,7 +14,7 @@ class ISerializable:
         pass
 
     @abc.abstractmethod
-    def ToArray(self):
+    def toArray(self):
         pass
 
 
@@ -84,43 +83,43 @@ class Data(EventStatesFunc):
 
     def eventUpdateAddress(self, data):
         self.address = data.address
-        self.timer.address[1] = time()
+        self.timer.address[1] = time.time()
 
     def eventUpdateAttitude(self, data):
         self.attitude = Angle(data.roll, data.pitch, data.yaw)
-        self.timer.address[1] = time()
+        self.timer.address[1] = time.time()
 
     def eventUpdateBattery(self, data):
         self.batteryPercent = data.batteryPercent
         self.batteryVoltage = data.voltage
-        self.timer.battery[1] = time()
+        self.timer.battery[1] = time.time()
 
     def eventUpdateImu(self, data):
         self.accel = Axis(data.accelX, data.accelY, data.accelZ)
         self.gyro = Angle(data.gyroRoll, data.gyroPitch, data.gyroYaw)
-        self.timer.imu[1] = time()
+        self.timer.imu[1] = time.time()
 
     def eventUpdatePressure(self, data):
         self.pressure = data.pressure
         self.temperature = data.temperature
-        self.timer.pressure[1] = time()
+        self.timer.pressure[1] = time.time()
 
     def eventUpdateRange(self, data):
         self.range = data.bottom
-        self.timer.range[1] = time()
+        self.timer.range[1] = time.time()
 
     def eventUpdateState_(self, data):
         self.reversed = data.sensorOrientation
         self.batteryPercent = data.battery
         self.state = data.modeFlight
-        self.timer.state[1] = time()
+        self.timer.state[1] = time.time()
 
     def eventUpdateState(self, data):
         self.reversed = data.sensorOrientation
         self.batteryPercent = data.battery
         self.state = data.modeFlight
         # check Event states flags
-        start_time = time()
+        start_time = time.time()
         # automatically checking
         if self.upsideDown is not None and self.reversed != SensorOrientation.Normal:
             if start_time - self.timer.upsideDown[1] > self.timer.upsideDown[0]:
@@ -157,11 +156,11 @@ class Data(EventStatesFunc):
 
     def eventUpdateTrim(self, data):
         self.trim = Flight(data.roll, data.pitch, data.yaw, data.throttle)
-        self.timer.trim[1] = time()
+        self.timer.trim[1] = time.time()
 
     def eventUpdateImageFlow(self, data):
         self.imageFlow = Position(data.positionX, data.positionY)
-        self.timer.imageFlow[1] = time()
+        self.timer.imageFlow[1] = time.time()
 
     def eventUpdateAck(self, data):
         self.ack = data

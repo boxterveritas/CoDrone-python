@@ -13,7 +13,7 @@ from CoDrone.storage import *
 
 
 def convertByteArrayToString(dataArray):
-    if dataArray == None:
+    if dataArray is None:
         return ""
 
     string = ""
@@ -30,7 +30,7 @@ class CoDrone:
     def __init__(self, flagCheckBackground=True, flagShowErrorMessage=False, flagShowLogMessage=False,
                  flagShowTransferData=False, flagShowReceiveData=False):
 
-        self._serialport = None
+        self._serialPort = None
         self._bufferQueue = Queue(4096)
         self._bufferHandler = bytearray()
         self._index = 0
@@ -40,7 +40,7 @@ class CoDrone:
         self._threadSendState = None
         self._lock = RLock()
         self._lockState = None
-        self._lockReciving = None
+        self._lockReceiving = None
         self._flagThreadRun = False
 
         self._receiver = Receiver()
@@ -62,7 +62,7 @@ class CoDrone:
         self._devices = []  # when using auto connect, save search list
         self._flagDiscover = False  # when using auto connect, notice is discover
         self._flagConnected = False  # when using auto connect, notice connection with device
-        self.timeStartProgram = time()  # record program starting time
+        self.timeStartProgram = time.time()  # record program starting time
 
         # Data
         self._timer = Timer()
@@ -92,11 +92,11 @@ class CoDrone:
             lock: main thread lock
             lockState: _sendRequestState lock
         """
-        self._lockReciving = RLock()
+        self._lockReceiving = RLock()
         while self._flagThreadRun:
             # lock other threads for reading
-            with lock and lockState and self._lockReciving:
-                self._bufferQueue.put(self._serialport.read())
+            with lock and lockState and self._lockReceiving:
+                self._bufferQueue.put(self._serialPort.read())
 
             # auto-update when background check for receive data is on
             if self._flagCheckBackground:
@@ -149,14 +149,10 @@ class CoDrone:
         """Save header internally. Data parsing and saved internal class.
         If event handler is registered, call function.
 
-        Returns: datatype, A member value in the DataType class.
+        Returns: A member value in the DataType class.
         """
 
-        # save input data
-        message = self._runHandler(header, dataArray)
-
-        if (message != None):   # print error
-            self._printError(message)
+        self._runHandler(header, dataArray)
 
         # run callback event
         self._runEventHandler(header.dataType)
@@ -165,11 +161,11 @@ class CoDrone:
         self._storageCount.d[header.dataType] += 1
 
         # process LinkEvent separately(event check like connect or disconnect)
-        if (header.dataType == DataType.LinkEvent) and (self._storage.d[DataType.LinkEvent] != None):
+        if (header.dataType == DataType.LinkEvent) and (self._storage.d[DataType.LinkEvent] is not None):
             self._eventLinkEvent(self._storage.d[DataType.LinkEvent])
 
         # process LinkEventAddress separately(event check like connect or disconnect)
-        if (header.dataType == DataType.LinkEventAddress) and (self._storage.d[DataType.LinkEventAddress] != None):
+        if (header.dataType == DataType.LinkEventAddress) and (self._storage.d[DataType.LinkEventAddress] is not None):
             self._eventLinkEventAddress(self._storage.d[DataType.LinkEventAddress])
 
         # process LinkDiscoveredDevice separately(add list of searched device)
@@ -271,8 +267,8 @@ class CoDrone:
             return
 
         dataArray = self._makeTransferDataArray(header, data)
-        with self._lockReciving and self._lock and self._lockState:
-            self._serialport.write(dataArray)
+        with self._lockReceiving and self._lock and self._lockState:
+            self._serialPort.write(dataArray)
 
         # print _transfer data
         self._printTransferData(dataArray)
@@ -294,9 +290,9 @@ class CoDrone:
         flag = 1
 
         self._transfer(header, data)
-        startTime = time()
+        startTime = time.time()
         while self._data.ack.dataType != header.dataType:
-            interval = time() - startTime
+            interval = time.time() - startTime
             # Break the loop if request time is over timeAll sec, send the request maximum flagAll times
             if interval > timeOnce * flag and flag < count:
                 self._transfer(header, data)
@@ -340,20 +336,20 @@ class CoDrone:
 
     def _printLog(self, message):
         if self._flagShowLogMessage and message is not None:
-            print(Fore.GREEN + "[{0:10.03f}] {1}".format((time() - self.timeStartProgram),
+            print(Fore.GREEN + "[{0:10.03f}] {1}".format((time.time() - self.timeStartProgram),
                                                          message) + Style.RESET_ALL)
 
     def _printError(self, message):
         if self._flagShowErrorMessage and message is not None:
             print(
-                Fore.RED + "[{0:10.03f}] {1}".format((time() - self.timeStartProgram), message) + Style.RESET_ALL)
+                Fore.RED + "[{0:10.03f}] {1}".format((time.time() - self.timeStartProgram), message) + Style.RESET_ALL)
 
     def _printTransferData(self, dataArray):
-        if (self._flagShowTransferData) and (dataArray != None) and (len(dataArray) > 0):
+        if self._flagShowTransferData and (dataArray is not None) and (len(dataArray) > 0):
             print(Back.YELLOW + Fore.BLACK + convertByteArrayToString(dataArray) + Style.RESET_ALL)
 
     def _printReceiveData(self, dataArray):
-        if (self._flagShowReceiveData) and (dataArray != None) and (len(dataArray) > 0):
+        if self._flagShowReceiveData and (dataArray is not None) and (len(dataArray) > 0):
             print(Back.CYAN + Fore.BLACK + convertByteArrayToString(dataArray) + Style.RESET_ALL, end='')
 
     def _printReceiveDataEnd(self):
@@ -370,8 +366,8 @@ class CoDrone:
 
         Returns: True if port is opened, false otherwise.
         """
-        if self._serialport is not None:
-            return self._serialport.isOpen()
+        if self._serialPort is not None:
+            return self._serialPort.isOpen()
         else:
             return False
 
@@ -400,7 +396,7 @@ class CoDrone:
             else:
                 return False
 
-        self._serialport = serial.Serial(
+        self._serialPort = serial.Serial(
             port=portName,
             baudrate=115200,
             parity=serial.PARITY_NONE,
@@ -414,7 +410,7 @@ class CoDrone:
             self._threadReceving = Thread(target=self._receiving, args=(self._lock, self._lockState,), daemon=True).start()
 
             # print log
-            self._printLog(">> Connected.({0})".format(portName))
+            print(">> Port : [{0}]".format(portName))
             return True
         else:
             # print error message
@@ -439,7 +435,7 @@ class CoDrone:
             sleep(0.01)
 
         while self.isOpen():
-            self._serialport.close()
+            self._serialPort.close()
             sleep(0.01)
 
     def connect(self, deviceName="None", portName="None", flagSystemReset=False):
@@ -490,6 +486,7 @@ class CoDrone:
             sleep(2)
 
             length = len(self._devices)
+            closestDevice = None
 
             if eq(deviceName, "None"):
                 # If not specify a name, connect to the nearest device
@@ -520,14 +517,16 @@ class CoDrone:
                 # check the name of connected device
                 targetDevice = None
 
-                if (len(self._devices) > 0):
-                    if (len(deviceName) == 4):
+                if len(self._devices) > 0:
+                    if len(deviceName) == 4:
                         for i in range(len(self._devices)):
                             if (len(self._devices[i].name) > 12) and (deviceName == self._devices[i].name[8:12]):
                                 targetDevice = self._devices[i]
                                 break
 
-                        if targetDevice != None:
+                        if targetDevice is not None:
+                            closestDevice = targetDevice
+
                             # if find the device, connect the device
                             self._flagConnected = False
                             self.sendLinkConnect(targetDevice.index)
@@ -548,20 +547,22 @@ class CoDrone:
                         self._printError(">> Device name length error(" + deviceName + ").")
 
                 else:
-                    self._printError(">> Could not find CODRONE.")
+                    self._printError(">> Could not find CoDrone.")
 
-            ## TO DO
-            ## How to alert low battery
             if self._flagConnected:
                 battery = self.getBatteryPercentage()
-                print(">> Drone battery : [{}]".format(battery))
+                if len(closestDevice) < 12:
+                    print(">> Battery : [{}]".format(battery))
+                else:
+                    print(">> Drone : [{}]\n>> Battery : [{}]".format(closestDevice.name[8:12],battery))
+
                 if battery < self._lowBatteryPercent:
                     print(">> Low Battery!!")
                 sleep(3)
                 return self._flagConnected
             else:
                 self._printError(">> Trying to connect : {}/5".format(reconnection+1))
-                if i == 4:
+                if reconnection == 4:
                     self._printError(">> Fail to connect.")
         return self._flagConnected
 
@@ -643,11 +644,11 @@ class CoDrone:
         control = Control()
         control.setAll(roll, pitch, yaw, throttle)
 
-        timeStart = time()
+        timeStart = time.time()
 
         receivingFlag = self._storageCount.d[DataType.Attitude]
 
-        while (time() - timeStart) < 0.2:
+        while (time.time() - timeStart) < 0.2:
             self._transfer(header, control)
             sleep(0.02)
             if self._storageCount.d[DataType.Attitude] > receivingFlag:
@@ -682,8 +683,8 @@ class CoDrone:
 
         self._transfer(header, control)
 
-        timeStart = time()
-        while (time() - timeStart) < duration:
+        timeStart = time.time()
+        while (time.time() - timeStart) < duration:
             self._transfer(header, control)
             sleep(0.02)
 
@@ -816,7 +817,7 @@ class CoDrone:
         Args:
             duration: The number of seconds to hover as type float. If 0, the duration is infinity.
         """
-        timeStart = time()
+        timeStart = time.time()
         header = Header()
 
         header.dataType = DataType.Control
@@ -826,7 +827,7 @@ class CoDrone:
         control.setAll(0, 0, 0, 0)
 
         if duration != 0:
-            while (time() - timeStart) < duration:
+            while (time.time() - timeStart) < duration:
                 self._transfer(header, control)
                 sleep(0.1)
         else:
@@ -893,7 +894,7 @@ class CoDrone:
             power: the power at which the drone flies. Takes a value from 0 to 100. Defaults to 50 if not defined.
 
         Examples:
-            >>> go(Direction.FORWARD)   # goes forward for 0.5 seconds at 50% power
+            >>> go(Direction.FORWARD)   # goes forward infinitely at 50% power
             >>> go(Direction.UP, 3)    # goes up for 3 seconds at 50% power
             >>> go(Direction.BACKWARD, 3, 30)   # goes backward for 3 seconds at 30% power
         """
@@ -912,11 +913,11 @@ class CoDrone:
         Args:
             direction: member values in the Direction enum class which can be one of the following: LEFT, RIGHT
             duration: the duration of the turn in seconds.
-                If 0, it will turn right indefinitely. Defaults to 0.5 seconds if not defined.
+                If 0 or not defined, it will turn right indefinitely.
             power: the power at which the drone turns right. Takes a value from 0 to 100. Defaults to 50 if not defined.
 
         Examples:
-            >>> turn(Direction.LEFT)    # yaws left for 0.5 sec at 50 power
+            >>> turn(Direction.LEFT)    # yaws left infinitely at 50 power
             >>> turn(Direction.RIGHT, 3)    # yaws right for 3 seconds at 50 power
             >>> turn(Direction.RIGHT, 5, 100)   # yaws right for 5 seconds at 100 power
         """
@@ -950,8 +951,8 @@ class CoDrone:
         direction = ((direction == Direction.RIGHT) - (direction == Direction.LEFT))  # right = 1 / left = -1
         degreeGoal = direction * (degree.value - bias) + yawPast
 
-        start_time = time()
-        while (time() - start_time) < degree.value / 3:
+        start_time = time.time()
+        while (time.time() - start_time) < degree.value / 3:
             yaw = self._data.attitude.YAW  # Receive attitude data every time you send a flight command
             if abs(yawPast - yaw) > 180:  # When the sign changes
                 degreeGoal -= direction * 360
@@ -977,8 +978,8 @@ class CoDrone:
         yawPast = self.getGyroAngles().YAW
         degreeGoal = 180 - bias + yawPast
 
-        start_time = time()
-        while (time() - start_time) < 60:
+        start_time = time.time()
+        while (time.time() - start_time) < 60:
             yaw = self._data.attitude.YAW  # Receive attitude data every time you send a flight command
             if abs(yawPast - yaw) > 180:  # When the sign changes
                 degreeGoal -= 360
@@ -1000,8 +1001,8 @@ class CoDrone:
         power = 30
         interval = 20  # height - 10 ~ height + 10
 
-        start_time = time()
-        while time() - start_time < 100:
+        start_time = time.time()
+        while time.time() - start_time < 100:
             state = self.getHeight()
             differ = height - state
             if differ > interval:   # Up
@@ -1029,7 +1030,7 @@ class CoDrone:
             dataType: member values in the DataType class
             timer: member values in the Timer class
         """
-        timeStart = time()
+        timeStart = time.time()
 
         if timer is not None:
             if timer[0] > (timeStart - timer[1]):
@@ -1047,7 +1048,7 @@ class CoDrone:
         resendFlag = 1
         self._transfer(header, data)
         while self._storageCount.d[dataType] == receivingFlag:
-            interval = time() - timeStart
+            interval = time.time() - timeStart
             if interval > 0.03 * resendFlag and resendFlag < 3:
                 self._transfer(header, data)
                 resendFlag += 1
@@ -1373,10 +1374,10 @@ class CoDrone:
         data.interval = self._LEDInterval
         self._LEDColor = [red, green, blue]
 
-        self._checkAck(header, data, 0.06, 0.3, 3)
+        self._checkAck(header, data, 0.06, 0.4, 3)
 
         data.mode = self._LEDArmMode
-        self._checkAck(header, data, 0.06, 0.3, 3)
+        self._checkAck(header, data, 0.06, 0.4, 3)
 
     def setArmDefaultRGB(self, red, green, blue):
         """This function sets the default LED color of the arms.
@@ -1629,8 +1630,8 @@ class CoDrone:
         yaw = self.getGyroAngles().YAW
         degree = -360 + yaw
 
-        startTime = time()
-        while (time() - startTime) < 15:
+        startTime = time.time()
+        while (time.time() - startTime) < 15:
             if abs(yaw - self._data.attitude.YAW) > 180:
                 degree += 360
             yaw = self._data.attitude.YAW
@@ -1812,13 +1813,13 @@ class CoDrone:
 
 
     def setEventHandler(self, dataType, eventHandler):
-        if (not isinstance(dataType, DataType)):
+        if not isinstance(dataType, DataType):
             return
 
         self._eventHandler.d[dataType] = eventHandler
 
     def getHeader(self, dataType):
-        if (not isinstance(dataType, DataType)):
+        if not isinstance(dataType, DataType):
             self._printError(">>> Parameter Type Error")    # print error message
             return None
 
@@ -1833,7 +1834,7 @@ class CoDrone:
 
     def getCount(self, dataType):
 
-        if (not isinstance(dataType, DataType)):
+        if not isinstance(dataType, DataType):
             self._printError(">>> Parameter Type Error")    # print error message
             return None
 
@@ -1891,9 +1892,9 @@ class CoDrone:
             return None
 
         timeSec = timeMs / 1000
-        timeStart = time()
+        timeStart = time.time()
 
-        while ((time() - timeStart) < timeSec):
+        while ((time.time() - timeStart) < timeSec):
             self.sendControl(roll, pitch, yaw, throttle)
             sleep(0.02)
 
@@ -1924,9 +1925,9 @@ class CoDrone:
             return None
 
         timeSec = timeMs / 1000
-        timeStart = time()
+        timeStart = time.time()
 
-        while ((time() - timeStart) < timeSec):
+        while ((time.time() - timeStart) < timeSec):
             self.sendControlDrive(wheel, accel)
             sleep(0.02)
 
@@ -1958,7 +1959,7 @@ class CoDrone:
 
     def sendModeVehicle(self, modeVehicle):
 
-        if (not isinstance(modeVehicle, ModeVehicle)):
+        if not isinstance(modeVehicle, ModeVehicle):
             return None
 
         header = Header()
@@ -1975,7 +1976,7 @@ class CoDrone:
 
     def sendHeadless(self, headless):
 
-        if (not isinstance(headless, Headless)):
+        if not isinstance(headless, Headless):
             return None
 
         header = Header()
@@ -1992,7 +1993,7 @@ class CoDrone:
 
     def sendTrim(self, trim):
 
-        if ((not isinstance(trim, Trim))):
+        if not isinstance(trim, Trim):
             return None
 
         header = Header()
@@ -2181,7 +2182,7 @@ class CoDrone:
 
     def sendLightMode(self, lightMode, colors, interval):
 
-        if (((not isinstance(lightMode, LightMode))) or
+        if (((not isinstance(lightMode, LightModeDrone))) or
                 (not isinstance(interval, int)) or
                 (not isinstance(colors, Colors))):
             return None
@@ -2201,7 +2202,7 @@ class CoDrone:
 
     def sendLightModeCommand(self, lightMode, colors, interval, commandType, option):
 
-        if (((not isinstance(lightMode, LightMode))) or
+        if (((not isinstance(lightMode, LightModeDrone))) or
                 (not isinstance(interval, int)) or
                 (not isinstance(colors, Colors)) or
                 (not isinstance(commandType, CommandType)) or
@@ -2226,7 +2227,7 @@ class CoDrone:
 
     def sendLightModeCommandIr(self, lightMode, interval, colors, commandType, option, irData):
 
-        if (((not isinstance(lightMode, LightMode))) or
+        if (((not isinstance(lightMode, LightModeDrone))) or
                 (not isinstance(interval, int)) or
                 (not isinstance(colors, Colors)) or
                 (not isinstance(commandType, CommandType)) or
@@ -2254,7 +2255,7 @@ class CoDrone:
 
     def sendLightModeColor(self, lightMode, r, g, b, interval):
 
-        if ((not isinstance(lightMode, LightMode)) or
+        if ((not isinstance(lightMode, LightModeDrone)) or
                 (not isinstance(r, int)) or
                 (not isinstance(g, int)) or
                 (not isinstance(b, int)) or
@@ -2278,7 +2279,7 @@ class CoDrone:
 
     def sendLightEvent(self, lightEvent, colors, interval, repeat):
 
-        if (((not isinstance(lightEvent, LightMode))) or
+        if (((not isinstance(lightEvent, LightModeDrone))) or
                 (not isinstance(colors, Colors)) or
                 (not isinstance(interval, int)) or
                 (not isinstance(repeat, int))):
@@ -2300,7 +2301,7 @@ class CoDrone:
 
     def sendLightEventCommand(self, lightEvent, colors, interval, repeat, commandType, option):
 
-        if (((not isinstance(lightEvent, LightMode))) or
+        if (((not isinstance(lightEvent, LightModeDrone))) or
                 (not isinstance(colors, Colors)) or
                 (not isinstance(interval, int)) or
                 (not isinstance(repeat, int)) or
@@ -2327,7 +2328,7 @@ class CoDrone:
 
     def sendLightEventCommandIr(self, lightEvent, colors, interval, repeat, commandType, option, irData):
 
-        if (((not isinstance(lightEvent, LightMode))) or
+        if (((not isinstance(lightEvent, LightModeDrone))) or
                 (not isinstance(colors, Colors)) or
                 (not isinstance(interval, int)) or
                 (not isinstance(repeat, int)) or
@@ -2357,7 +2358,7 @@ class CoDrone:
 
     def sendLightEventColor(self, lightEvent, r, g, b, interval, repeat):
 
-        if (((not isinstance(lightEvent, LightMode))) or
+        if (((not isinstance(lightEvent, LightModeDrone))) or
                 (not isinstance(r, int)) or
                 (not isinstance(g, int)) or
                 (not isinstance(b, int)) or
@@ -2383,7 +2384,7 @@ class CoDrone:
 
     def sendLightModeDefaultColor(self, lightMode, r, g, b, interval):
 
-        if ((not isinstance(lightMode, LightMode)) or
+        if ((not isinstance(lightMode, LightModeDrone)) or
                 (not isinstance(r, int)) or
                 (not isinstance(g, int)) or
                 (not isinstance(b, int)) or
