@@ -267,6 +267,7 @@ class CommandType(Enum):
     ResetHeading = 0x50  # head reset
     ClearGyroBias = 0x51  # clear trim and gyroBias
     ClearTrim = 0x52  # clear trim
+    Calibrate = 0x53 #calibration
 
     # Wireless Lan
     ResetWirelessLan = 0x70
@@ -407,6 +408,7 @@ class Request(ISerializable):
         data.dataType = DataType(data.dataType)
 
         return data
+
 
 class Passcode(ISerializable):
     def __init__(self):

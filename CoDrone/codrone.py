@@ -7,6 +7,7 @@ import colorama
 from colorama import Fore, Back, Style
 import serial
 from serial.tools.list_ports import comports
+import os.path
 
 from CoDrone.receiver import *
 from CoDrone.storage import *
@@ -62,6 +63,7 @@ class CoDrone:
         self._devices = []  # when using auto connect, save search list
         self._flagDiscover = False  # when using auto connect, notice is discover
         self._flagConnected = False  # when using auto connect, notice connection with device
+        self.Nearest = "0000"
         self.timeStartProgram = time.time()  # record program starting time
 
         # Data
@@ -437,6 +439,142 @@ class CoDrone:
         while self.isOpen():
             self._serialPort.close()
             sleep(0.01)
+    def pair(self, deviceName="None", portName="None", flagSystemReset=False):
+        """If the serial port is not open, open the serial port,
+        Search for CODRONE and connect it to the device with the strongest signal.
+
+        Args:
+            deviceName: If specify a deviceName, Connect only when the specified device is discovered.
+            portName: Serial port name.
+            flagSystemReset: Use to reset and start the first CODRONE LINK after the serial communication connection.
+
+        Returns: True if connected, false otherwise.
+        """
+
+        # case for serial port is None(connect to last connection)
+        if not self.isOpen():
+            self.close()
+            self.open(portName)
+            sleep(0.1)
+
+        # if not connect with serial port print error and return
+        if not self.isOpen():
+            # print error
+            self._printError(">> Could not connect to serial port.")
+            return False
+
+        # system reset
+        if flagSystemReset:
+            self.sendLinkSystemReset()
+            sleep(3)
+
+        # ModeLinkBroadcast.Passive mode change
+        self.sendLinkModeBroadcast(ModeLinkBroadcast.Passive)
+        sleep(0.1)
+
+        for reconnection in range(5):
+            # start searching device
+            self._devices.clear()
+            self._flagDiscover = True
+            self.sendLinkDiscoverStart()
+
+            # wait for 5sec
+            for i in range(50):
+                sleep(0.1)
+                if not self._flagDiscover:
+                    break
+
+            sleep(2)
+
+            length = len(self._devices)
+            closestDevice = None
+
+            # near by drone
+            if eq(deviceName, "0000") or (eq(deviceName, "None") and not os.path.exists('PairInfo')):
+                # If not specify a name, connect to the nearest device
+                if length > 0:
+                    closestDevice = self._devices[0]
+
+                    # If more than two device is found, select the closest device
+                    if len(self._devices) > 1:
+                        for i in range(len(self._devices)):
+                            if closestDevice.rssi < self._devices[i].rssi:
+                                closestDevice = self._devices[i]
+
+                    # connect the device
+                    self._flagConnected = False
+                    self.sendLinkConnect(closestDevice.index)
+
+                    # wait for 5 seconds to connect the device
+                    for i in range(50):
+                        sleep(0.1)
+                        if self._flagConnected:
+                            f = open('PairInfo', 'w')
+                            f.write(closestDevice.name[8:12])
+                            f.close()
+                            break
+                    sleep(1.2)
+
+                else:
+                    self._printError(">> Could not find CODRONE.")
+
+            # using petrone number
+            else:
+                # check the name of connected device
+                targetDevice = None
+
+                if eq(deviceName, "None"):
+                    f = open('PairInfo', 'r')
+                    deviceName = f.readline()
+                    f.close()
+                if len(self._devices) > 0:
+                    if len(deviceName) == 4:
+                        for i in range(len(self._devices)):
+                            if (len(self._devices[i].name) > 12) and (deviceName == self._devices[i].name[8:12]):
+                                targetDevice = self._devices[i]
+                                break
+
+                        if targetDevice is not None:
+                            closestDevice = targetDevice
+
+                            # if find the device, connect the device
+                            self._flagConnected = False
+                            self.sendLinkConnect(targetDevice.index)
+
+                            # wait for 5 seconds to connect the device
+                            for i in range(50):
+                                sleep(0.1)
+                                if self._flagConnected:
+                                    break
+
+                            # connect and wait another 1.2 seconds.
+                            sleep(1.2)
+
+                        else:
+                            self._printError(">> Could not find " + deviceName + ".")
+
+                    else:
+                        self._printError(">> Device name length error(" + deviceName + ").")
+
+                else:
+                    self._printError(">> Could not find CoDrone.")
+
+            if self._flagConnected:
+                battery = self.getBatteryPercentage()
+                try:
+                    print(">> Drone : [{}]\n>> Battery : [{}]".format(closestDevice.name[8:12],battery))
+                except:
+                    print(">> Battery : [{}]".format(battery))
+
+                if battery < self._lowBatteryPercent:
+                    print(">> Low Battery!!")
+                sleep(3)
+                return self._flagConnected
+            else:
+                self._printError(">> Trying to connect : {}/5".format(reconnection+1))
+                if reconnection == 4:
+                    self._printError(">> Fail to connect.")
+        return self._flagConnected
 
     def connect(self, deviceName="None", portName="None", flagSystemReset=False):
         """If the serial port is not open, open the serial port,
@@ -551,10 +689,10 @@ class CoDrone:
 
             if self._flagConnected:
                 battery = self.getBatteryPercentage()
-                if len(closestDevice) < 12:
-                    print(">> Battery : [{}]".format(battery))
-                else:
+                try:
                     print(">> Drone : [{}]\n>> Battery : [{}]".format(closestDevice.name[8:12],battery))
+                except:
+                    print(">> Battery : [{}]".format(battery))
 
                 if battery < self._lowBatteryPercent:
                     print(">> Low Battery!!")
@@ -670,8 +808,6 @@ class CoDrone:
 
         Returns: True if responds well, false otherwise.
         """
-        if duration == 0:
-            return self.sendControl(roll, pitch, yaw, throttle)
 
         header = Header()
 
@@ -859,7 +995,52 @@ class CoDrone:
 
     ### FLIGHT COMMANDS (MOVEMENT) -------- START
 
-    def move(self, duration=None, roll=None, pitch=None, yaw=None, throttle=None):
+
+    def calibrate(self):
+        """This function sends control request.
+
+        Args:
+
+        Returns:
+        """
+        print("start")
+        header = Header()
+
+        header.dataType = DataType.Command
+        header.length = Command.getSize()
+
+        data = Command()
+
+        data.commandType = CommandType.Calibrate
+        data.option = 0
+        print("ready to send")
+        return self._transfer(header, data)
+
+    # def move(self, duration=None, roll=None, pitch=None, yaw=None, throttle=None):
+    #     """Once flying, the drone goes in the direction of the set flight motion variables.
+    #     If the drone is not flying, nothing will happen.
+    #     If you provide no parameters or only duration, it will execute it based on the current flight motion variables set.
+    #     Args:
+    #         duration: the duration of the flight motion in seconds. If 0, the duration is infinity.
+    #         roll: the power of the roll, which is an int from -100 to 100
+    #         pitch: the power of the pitch, which is an int from -100 to 100
+    #         yaw: the power of the yaw, which is an int from -100 to 100
+    #         throttle: the power of the throttle, which is an int from -100 to 100
+    #
+    #     Examples:
+    #         >>> move()  #goes infinity
+    #         >>> move(3)    #goes for 3 seconds
+    #         >>> move(3, 0,0,0,50)   #goes upward for 3 seconds at 50% power
+    #     """
+    #     if duration is None:    # move()
+    #         self.sendControl(*self._control.getAll())
+    #         sleep(1)
+    #     elif roll is None:      # move(duration)
+    #         self.sendControlDuration(*self._control.getAll(), duration)
+    #     else:                   # move(duration, roll, pitch, yaw, throttle)
+    #         self.sendControlDuration(roll, pitch, yaw, throttle, duration)
+
+    def move(self,*args):
         """Once flying, the drone goes in the direction of the set flight motion variables.
         If the drone is not flying, nothing will happen.
         If you provide no parameters or only duration, it will execute it based on the current flight motion variables set.
@@ -875,13 +1056,15 @@ class CoDrone:
             >>> move(3)    #goes for 3 seconds
             >>> move(3, 0,0,0,50)   #goes upward for 3 seconds at 50% power
         """
-        if duration is None:    # move()
+        if len(args) == 0:    # move()
             self.sendControl(*self._control.getAll())
             sleep(1)
-        elif roll is None:      # move(duration)
-            self.sendControlDuration(*self._control.getAll(), duration)
-        else:                   # move(duration, roll, pitch, yaw, throttle)
-            self.sendControlDuration(roll, pitch, yaw, throttle, duration)
+        elif len(args) == 1:      # move(duration)
+            self.sendControlDuration(*self._control.getAll(), args[0])
+        elif len(args) == 4:                   # move(duration, roll, pitch, yaw, throttle)
+            self.sendControl(*args)
+        elif len(args) == 5:                   # move(duration, roll, pitch, yaw, throttle)
+            self.sendControlDuration(args[1], args[2], args[3], args[4], args[0])
 
     def go(self, direction, duration=0, power=50):
         """A simpler Junior level function that represents positive flight with a direction, but with more natural language.
@@ -1626,27 +1809,21 @@ class CoDrone:
 
     def flyCircle(self):
 
-        power = -50
-        yaw = self.getGyroAngles().YAW
-        degree = -360 + yaw
-
-        startTime = time.time()
-        while (time.time() - startTime) < 15:
-            if abs(yaw - self._data.attitude.YAW) > 180:
-                degree += 360
-            yaw = self._data.attitude.YAW
-            if degree < yaw:
-                self.sendControl(10, 0, power, 0)
-                sleep(0.1)
-            else:
-                break
+        self.move(0, 40, 0, 0, 0)
+        sleep(0.2)
+        self.move(0, 40, 0, -60, 0)
+        sleep(2.5)
+        self.move(0, 40, 0, -50, 0)
+        sleep(1.0)
+        self.move(0, 30, 0, 0, 0)
+        sleep(0.1)
 
         self.hover(1)
 
     def flySpiral(self):
 
         for i in range(5):
-            self.sendControl(10, 0, -50, -i * 2)
+            self.sendControl(10+2*i, 0, -50, 0)
             sleep(1)
 
         self.hover(1)
