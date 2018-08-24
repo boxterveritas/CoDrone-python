@@ -57,13 +57,13 @@ class Degree(Enum):
 class Mode(Enum):
     None_ = 0x00
     OFF = 0x10
-    HOLD = 0x11
-    MIX = 0x12
-    FLICKER = 0x13
-    FLICKER_DOUBLE = 0x14
+    SOLID = 0x11
+    STROBE = 0x12
+    BLINK = 0x13
+    BLINK_DOUBLE = 0x14
     DIMMING = 0x15
-    FLOW = 0x16
-    FLOW_REVERSE = 0x17
+    PULSE = 0x16
+    REVERSE_PULSE = 0x17
     EndOfType = 0x18
 
 

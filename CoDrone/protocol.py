@@ -267,6 +267,7 @@ class CommandType(Enum):
     ResetHeading = 0x50  # head reset
     ClearGyroBias = 0x51  # clear trim and gyroBias
     ClearTrim = 0x52  # clear trim
+    Calibrate = 0x53 #calibration
 
     # Wireless Lan
     ResetWirelessLan = 0x70
@@ -407,6 +408,7 @@ class Request(ISerializable):
         data.dataType = DataType(data.dataType)
 
         return data
+
 
 class Passcode(ISerializable):
     def __init__(self):
@@ -635,7 +637,7 @@ class LightModeDrone(Enum):
     EndOfType = 0x48
 
 
-class Color(ISerializable):
+class LEDColor(ISerializable):
     def __init__(self):
         self.r = 0
         self.g = 0
@@ -650,7 +652,7 @@ class Color(ISerializable):
 
     @classmethod
     def parse(cls, dataArray):
-        data = Color()
+        data = LEDColor()
 
         if len(dataArray) != cls.getSize():
             return None
@@ -659,7 +661,7 @@ class Color(ISerializable):
         return data
 
 
-class Colors(Enum):
+class Color(Enum):
     AliceBlue = 0
     AntiqueWhite = 1
     Aqua = 2
@@ -808,7 +810,7 @@ class Colors(Enum):
 class LightMode(ISerializable):
     def __init__(self):
         self.mode = LightModeDrone.None_
-        self.colors = Colors.Black
+        self.color = Color.Black
         self.interval = 0
 
     @classmethod
@@ -816,7 +818,7 @@ class LightMode(ISerializable):
         return 3
 
     def toArray(self):
-        return pack('<BBB', self.mode.value, self.colors.value, self.interval)
+        return pack('<BBB', self.mode.value, self.color.value, self.interval)
 
     @classmethod
     def parse(cls, dataArray):
@@ -825,9 +827,9 @@ class LightMode(ISerializable):
         if len(dataArray) != cls.getSize():
             return None
 
-        data.mode, data.colors, data.interval = unpack('<BBB', dataArray)
+        data.mode, data.color, data.interval = unpack('<BBB', dataArray)
         data.mode = LightModeDrone(data.mode)
-        data.colors = Colors(data.colors)
+        data.color = Color(data.color)
 
         return data
 
@@ -935,12 +937,12 @@ class LightModeCommandIr(ISerializable):
 class LightModeColor(ISerializable):
     def __init__(self):
         self.mode = LightModeDrone.None_
-        self.color = Color()
+        self.color = LEDColor()
         self.interval = 0
 
     @classmethod
     def getSize(cls):
-        return 1 + Color.getSize() + 1
+        return 1 + LEDColor.getSize() + 1
 
     def toArray(self):
         dataArray = bytearray()
@@ -960,8 +962,8 @@ class LightModeColor(ISerializable):
         indexEnd = 1
         data.mode = unpack('<B', dataArray[indexStart:indexEnd])
         indexStart = indexEnd
-        indexEnd += Color.getSize()
-        data.color = Color.parse(dataArray[indexStart:indexEnd])
+        indexEnd += LEDColor.getSize()
+        data.color = LEDColor.parse(dataArray[indexStart:indexEnd])
         indexStart = indexEnd
         indexEnd += 1
         data.interval = unpack('<B', dataArray[indexStart:indexEnd])
@@ -1005,7 +1007,7 @@ class LightModeColor2(ISerializable):
 class LightEvent(ISerializable):
     def __init__(self):
         self.event = LightModeDrone.None_
-        self.colors = Colors.Black
+        self.color = Color.Black
         self.interval = 0
         self.repeat = 0
 
@@ -1014,7 +1016,7 @@ class LightEvent(ISerializable):
         return 4
 
     def toArray(self):
-        return pack('<BBBB', self.event.value, self.colors.value, self.interval, self.repeat)
+        return pack('<BBBB', self.event.value, self.color.value, self.interval, self.repeat)
 
     @classmethod
     def parse(cls, dataArray):
@@ -1023,9 +1025,9 @@ class LightEvent(ISerializable):
         if len(dataArray) != cls.getSize():
             return None
 
-        data.event, data.colors, data.interval, data.repeat = unpack('<BBBB', dataArray)
+        data.event, data.color, data.interval, data.repeat = unpack('<BBBB', dataArray)
         data.event = LightModeDrone(data.event)
-        data.colors = Colors(data.colors)
+        data.color = Color(data.color)
 
         return data
 
@@ -1133,13 +1135,13 @@ class LightEventCommandIr(ISerializable):
 class LightEventColor(ISerializable):
     def __init__(self):
         self.event = LightModeDrone.None_
-        self.color = Color()
+        self.color = LEDColor()
         self.interval = 0
         self.repeat = 0
 
     @classmethod
     def getSize(cls):
-        return 1 + Color.getSize() + 2
+        return 1 + LEDColor.getSize() + 2
 
     def toArray(self):
         dataArray = bytearray()
@@ -1161,7 +1163,7 @@ class LightEventColor(ISerializable):
         data.event = unpack('<B', dataArray[indexStart:indexEnd])
         indexStart = indexEnd
         indexEnd = LightEvent.getSize()
-        data.color = Color.parse(dataArray[indexStart:indexEnd])
+        data.color = LEDColor.parse(dataArray[indexStart:indexEnd])
         indexStart = indexEnd
         indexEnd += 1
         data.interval = unpack('<B', dataArray[indexStart:indexEnd])
