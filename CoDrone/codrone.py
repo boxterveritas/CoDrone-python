@@ -409,7 +409,8 @@ class CoDrone:
         if self.isOpen():
             self._flagThreadRun = True
             self._threadSendState = Thread(target=self._sendRequestState, args=(self._lock,), daemon=True).start()
-            self._threadReceving = Thread(target=self._receiving, args=(self._lock, self._lockState,), daemon=True).start()
+            self._threadReceving = Thread(target=self._receiving, args=(self._lock, self._lockState,),
+                                          daemon=True).start()
 
             # print log
             print(">> Port : [{0}]".format(portName))
@@ -439,6 +440,7 @@ class CoDrone:
         while self.isOpen():
             self._serialPort.close()
             sleep(0.01)
+
     def pair(self, deviceName="None", portName="None", flagSystemReset=False):
         """If the serial port is not open, open the serial port,
         Search for CODRONE and connect it to the device with the strongest signal.
@@ -562,7 +564,7 @@ class CoDrone:
             if self._flagConnected:
                 battery = self.getBatteryPercentage()
                 try:
-                    print(">> Drone : [{}]\n>> Battery : [{}]".format(closestDevice.name[8:12],battery))
+                    print(">> Drone : [{}]\n>> Battery : [{}]".format(closestDevice.name[8:12], battery))
                 except:
                     print(">> Battery : [{}]".format(battery))
 
@@ -571,7 +573,7 @@ class CoDrone:
                 sleep(3)
                 return self._flagConnected
             else:
-                self._printError(">> Trying to connect : {}/5".format(reconnection+1))
+                self._printError(">> Trying to connect : {}/5".format(reconnection + 1))
                 if reconnection == 4:
                     self._printError(">> Fail to connect.")
         return self._flagConnected
@@ -690,7 +692,7 @@ class CoDrone:
             if self._flagConnected:
                 battery = self.getBatteryPercentage()
                 try:
-                    print(">> Drone : [{}]\n>> Battery : [{}]".format(closestDevice.name[8:12],battery))
+                    print(">> Drone : [{}]\n>> Battery : [{}]".format(closestDevice.name[8:12], battery))
                 except:
                     print(">> Battery : [{}]".format(battery))
 
@@ -699,7 +701,7 @@ class CoDrone:
                 sleep(3)
                 return self._flagConnected
             else:
-                self._printError(">> Trying to connect : {}/5".format(reconnection+1))
+                self._printError(">> Trying to connect : {}/5".format(reconnection + 1))
                 if reconnection == 4:
                     self._printError(">> Fail to connect.")
         return self._flagConnected
@@ -749,7 +751,7 @@ class CoDrone:
         Returns: True if responds well, false otherwise.
         """
         if not isinstance(dataType, DataType):
-            self._printError(">>> Parameter Type Error")    # print error message
+            self._printError(">>> Parameter Type Error")  # print error message
             return None
 
         header = Header()
@@ -760,7 +762,7 @@ class CoDrone:
         data = Request()
 
         data.dataType = dataType
-        return self._transfer(header,data)
+        return self._transfer(header, data)
 
     @lockState
     def sendControl(self, roll, pitch, yaw, throttle):
@@ -838,6 +840,7 @@ class CoDrone:
     Getter:
         Returns: The power of the variable(int)        
     """
+
     def setRoll(self, power):
         self._control.roll = power
 
@@ -903,7 +906,6 @@ class CoDrone:
 
     ### FLIGHT VARIABLES -------- END
 
-
     ### FLIGHT COMMANDS (START/STOP) -------- START
 
     def takeoff(self):
@@ -931,7 +933,7 @@ class CoDrone:
         """This function makes the drone stop all commands, hovers, and makes a soft landing where it is.
         The function will also zero-out all of the flight motion variables to 0.
         """
-        self._control.setAll(0, 0, 0, 0)    # set the flight motion variables to 0.
+        self._control.setAll(0, 0, 0, 0)  # set the flight motion variables to 0.
 
         header = Header()
 
@@ -974,8 +976,8 @@ class CoDrone:
         """This function immediately stops all commands and stops all motors, so the drone will stop flying immediately.
         The function will also zero-out all of the flight motion variables to 0.
         """
-        self._data.stopFuncFlag = 1    # Event states
-        self._control.setAll(0, 0, 0, 0)     # set the flight motion variables to 0
+        self._data.stopFuncFlag = 1  # Event states
+        self._control.setAll(0, 0, 0, 0)  # set the flight motion variables to 0
 
         header = Header()
 
@@ -992,9 +994,7 @@ class CoDrone:
 
     ### FLIGHT COMMANDS (START/STOP) -------- END
 
-
     ### FLIGHT COMMANDS (MOVEMENT) -------- START
-
 
     def calibrate(self):
         """This function sends control request.
@@ -1016,31 +1016,7 @@ class CoDrone:
         print("ready to send")
         return self._transfer(header, data)
 
-    # def move(self, duration=None, roll=None, pitch=None, yaw=None, throttle=None):
-    #     """Once flying, the drone goes in the direction of the set flight motion variables.
-    #     If the drone is not flying, nothing will happen.
-    #     If you provide no parameters or only duration, it will execute it based on the current flight motion variables set.
-    #     Args:
-    #         duration: the duration of the flight motion in seconds. If 0, the duration is infinity.
-    #         roll: the power of the roll, which is an int from -100 to 100
-    #         pitch: the power of the pitch, which is an int from -100 to 100
-    #         yaw: the power of the yaw, which is an int from -100 to 100
-    #         throttle: the power of the throttle, which is an int from -100 to 100
-    #
-    #     Examples:
-    #         >>> move()  #goes infinity
-    #         >>> move(3)    #goes for 3 seconds
-    #         >>> move(3, 0,0,0,50)   #goes upward for 3 seconds at 50% power
-    #     """
-    #     if duration is None:    # move()
-    #         self.sendControl(*self._control.getAll())
-    #         sleep(1)
-    #     elif roll is None:      # move(duration)
-    #         self.sendControlDuration(*self._control.getAll(), duration)
-    #     else:                   # move(duration, roll, pitch, yaw, throttle)
-    #         self.sendControlDuration(roll, pitch, yaw, throttle, duration)
-
-    def move(self,*args):
+    def move(self, *args):
         """Once flying, the drone goes in the direction of the set flight motion variables.
         If the drone is not flying, nothing will happen.
         If you provide no parameters or only duration, it will execute it based on the current flight motion variables set.
@@ -1056,14 +1032,14 @@ class CoDrone:
             >>> move(3)    #goes for 3 seconds
             >>> move(3, 0,0,0,50)   #goes upward for 3 seconds at 50% power
         """
-        if len(args) == 0:    # move()
+        if len(args) == 0:  # move()
             self.sendControl(*self._control.getAll())
             sleep(1)
-        elif len(args) == 1:      # move(duration)
+        elif len(args) == 1:  # move(duration)
             self.sendControlDuration(*self._control.getAll(), args[0])
-        elif len(args) == 4:                   # move(duration, roll, pitch, yaw, throttle)
+        elif len(args) == 4:  # move(duration, roll, pitch, yaw, throttle)
             self.sendControl(*args)
-        elif len(args) == 5:                   # move(duration, roll, pitch, yaw, throttle)
+        elif len(args) == 5:  # move(duration, roll, pitch, yaw, throttle)
             self.sendControlDuration(args[1], args[2], args[3], args[4], args[0])
 
     def go(self, direction, duration=0, power=50):
@@ -1124,7 +1100,7 @@ class CoDrone:
             >>> turnDegree(Direction.LEFT, Degree.ANGLE_30)    # turn left 30 degrees
         """
         if not isinstance(direction, Direction) or not isinstance(degree, Degree):
-            self._printError(">>> Parameter Type Error")    # print error message
+            self._printError(">>> Parameter Type Error")  # print error message
             return None
 
         power = 20
@@ -1188,10 +1164,10 @@ class CoDrone:
         while time.time() - start_time < 100:
             state = self.getHeight()
             differ = height - state
-            if differ > interval:   # Up
+            if differ > interval:  # Up
                 self.sendControl(0, 0, 0, power)
                 sleep(0.1)
-            elif differ < -interval:    # Down
+            elif differ < -interval:  # Down
                 self.sendControl(0, 0, 0, -power)
                 sleep(0.1)
             else:
@@ -1201,7 +1177,6 @@ class CoDrone:
         sleep(1)
 
     ### FLIGHT COMMANDS (MOVEMENT) -------- END
-
 
     ### SENSORS -------- START
 
@@ -1246,7 +1221,7 @@ class CoDrone:
         Returns:  The current height above the object directly below the drone’s IR height sensor.
         """
 
-        #Checks if a request arrived or not and requests again maximum 3 times, 0.15sec
+        # Checks if a request arrived or not and requests again maximum 3 times, 0.15sec
         self._getDataWhile(DataType.Range, self._timer.range)
         return self._data.range
 
@@ -1358,7 +1333,6 @@ class CoDrone:
 
     ### SENSORS -------- END
 
-
     ### STATUS CHECKERS -------- START
     def isUpsideDown(self):
         """This function checks the current drone status if it's reversed or not.
@@ -1385,7 +1359,6 @@ class CoDrone:
         return self._data.state == ModeFlight.READY
 
     ### STATUS CHECKERS -------- END
-
 
     ### EVENT STATES -------- START
 
@@ -1463,300 +1436,319 @@ class CoDrone:
 
     ### EVENT STATES -------- END
 
-
     ### LEDS -------- START
 
-    def setArmRGB(self, red, green, blue):
-        """This function sets the LED color of the arms based on input red, green, and blue values.
-        Mode and bright are set with Hold and 100% for default
+    @lockState
+    def sendLEDprocess(self, dataType, *args):
 
-        Args:
-            red: int value from 0 to 255
-            green: int value from 0 to 255
-            blue: int value from 0 to 255
-        """
-        if ((not isinstance(red, int)) or
-                (not isinstance(green, int)) or
-                (not isinstance(blue, int))):
-            self._printError(">>> Parameter Type Error")    # print error message
+        data = None
+        length = len(args)
+
+        # check datatype parameter
+        if ((not isinstance(dataType, DataType)) or
+                (not isinstance(args[0], LightModeDrone))):
             return None
 
-        header = Header()
-
-        header.dataType = DataType.LightModeColor
-        header.length = LightModeColor.getSize()
-
-        data = LightModeColor()
-
-        data.mode = self._LEDArmMode
-        data.color.r = red
-        data.color.g = green
-        data.color.b = blue
-        data.interval = self._LEDInterval
-        self._LEDColor = [red, green, blue]
-
-        self._checkAck(header, data, 0.06, 0.3, 3)
-
-    def setEyeRGB(self, red, green, blue):
-        """This function sets the LED color of the eyes based on input red, green, and blue values
-
-        Args:
-             red: int value from 0 to 255
-             green: int value from 0 to 255
-             blue: int value from 0 to 255
-        """
-        if ((not isinstance(red, int)) or
-                (not isinstance(green, int)) or
-                (not isinstance(blue, int))):
-            self._printError(">>> Parameter Type Error")    # print error message
+        # mode data object with right dataType class
+        if dataType is DataType.LightMode:
+            data = LightMode()
+        elif dataType is DataType.LightModeColor or dataType is DataType.LightModeDefaultColor:
+            data = LightModeColor()
+        elif dataType is DataType.LightMode2:
+            data = LightMode2()
+        elif dataType is DataType.LightModeColor2 or dataType is DataType.LightModeDefaultColor2:
+            data = LightModeColor2()
+        else:
+            self._printError(">>>Datatype not support yet")
             return None
 
+        # generate Header object
         header = Header()
+        header.dataType = dataType
+        header.length = data.getSize()
 
-        header.dataType = DataType.LightModeColor
-        header.length = LightModeColor.getSize()
+        # assign data to object
+        # length 3 is for LightMode 5 is for LightModeColor or LightModeDefaultColor
+        # 6 for LightMode2 and 10 for LightModeColor2 or LightModeDefaultColor2
+        if length == 3:
+            data.mode = args[0]
+            data.color = args[1]
+            data.interval = args[2]
 
-        data = LightModeColor()
+        elif length == 5:
+            data.mode = args[0]
+            data.color.r = args[1]
+            data.color.g = args[2]
+            data.color.b = args[3]
+            data.interval = args[4]
 
-        data.mode = self._LEDEyeMode
-        data.color.r = red
-        data.color.g = green
-        data.color.b = blue
-        data.interval = self._LEDInterval
-        self._LEDColor = [red, green, blue]
+        elif length == 6:
+            data.lightMode1.mode = args[0]
+            data.lightMode1.color = args[1]
+            data.lightMode1.interval = args[2]
+            data.lightMode2.mode = args[3]
+            data.lightMode2.color = args[4]
+            data.lightMode2.interval = args[5]
 
-        self._checkAck(header,data, 0.06, 0.3, 3)
+        elif length == 10:
+            data.lightModeColor1.mode = args[0]
+            data.lightModeColor1.color.r = args[1]
+            data.lightModeColor1.color.g = args[2]
+            data.lightModeColor1.color.b = args[3]
+            data.lightModeColor1.interval = args[4]
+            data.lightModeColor2.mode = args[5]
+            data.lightModeColor2.color.r = args[6]
+            data.lightModeColor2.color.g = args[7]
+            data.lightModeColor2.color.b = args[8]
+            data.lightModeColor2.interval = args[9]
 
-    def setAllRGB(self, red, green, blue):
-        """This function sets the LED color of the drone (except the green tail light) to the given color
+        return self._checkAck(header, data, 0.06, 0.3, 5)
 
-        Args:
-             red: int value from 0 to 255
-             green: int value from 0 to 255
-             blue: int value from 0 to 255
+    def setEyeLED(self, r=-1, g=-1, b=-1, mode=-1, interval=100):
         """
-        if ((not isinstance(red, int)) or
-                (not isinstance(green, int)) or
-                (not isinstance(blue, int))):
-            self._printError(">>> Parameter Type Error")    # print error message
-            return None
+        This function sets the LED color of the eyes, the light pattern, and the interval of the
+        light pattern. You can set the color based on input red, green, and blue values or using
+        predefined colors.
 
-        header = Header()
+        Syntax:
+            setEyeLED(color, mode)
+            setEyeLED(color, mode, interval)
+            setEyeLED(red, green, blue, mode)
+            setEyeLED(red, green, blue, mode, interval)
 
-        ## TO DO
-        ## LightModeColor2 is not working
-        header.dataType = DataType.LightModeColor
-        header.length = LightModeColor.getSize()
+        Arguments:
+            r: int value from 0 to 255, or type Color
+            g: int value from 0 to 255, or type Mode
+            b: int value from 0 to 255
+            mode: an enum, which can be selected from the following predefined list: SOLID, STROBE, BLINK, DOUBLE_BLINK, DIMMING, PULSE, REVERSE_PULSE, OFF
+            interval: the interval of the light pattern, except for in the case of SOLID. For SOLID mode, this refers to the light's brightness.
 
-        data = LightModeColor()
-
-        data.mode = self._LEDEyeMode
-        data.color.r = red
-        data.color.g = green
-        data.color.b = blue
-        data.interval = self._LEDInterval
-        self._LEDColor = [red, green, blue]
-
-        self._checkAck(header, data, 0.06, 0.4, 3)
-
-        data.mode = self._LEDArmMode
-        self._checkAck(header, data, 0.06, 0.4, 3)
-
-    def setArmDefaultRGB(self, red, green, blue):
-        """This function sets the default LED color of the arms.
-        It will remain that color after powering off and back on.
-
-        Args:
-            red: int value from 0 to 255
-            green: int value from 0 to 255
-            blue: int value from 0 to 255
+        Returns:
+            None
         """
-        if ((not isinstance(red, int)) or
-                (not isinstance(green, int)) or
-                (not isinstance(blue, int))):
-            self._printError(">>> Parameter Type Error")    # print error message
-            return None
+        if isinstance(r, Color):
 
-        header = Header()
+            if not isinstance(g, Mode):
+                self._printError(">>> Parameter Type Error")  # print error message
+                return
+            elif b not in range(-1, 256):
+                self._printError(">>> boundary exception")  # print error message
+                return
 
-        header.dataType = DataType.LightModeDefaultColor
-        header.length = LightModeDefaultColor.getSize()
+            mode = g
+            interval = b if (b > 0) else 100
 
-        data = LightModeDefaultColor()
-        data.mode = self._LEDArmMode
-        self._LEDColor = [red, green, blue]
-        data.color.r = red
-        data.color.g = green
-        data.color.b = blue
-        data.interval = self._LEDInterval
+            self.sendLEDprocess(DataType.LightMode, LightModeDrone(mode.value), r, interval)
 
-        self._checkAck(header, data, 0.06, 0.4, 3)
+        elif isinstance(r, int):
 
-    def setEyeDefaultRGB(self, red, green, blue):
-        """This function sets the default LED color of the eyes.
-        It will remain that color after powering off and back on.
-        Based on input red, green, and blue values
+            if not isinstance(mode, Mode):
+                self._printError(">>> Parameter Type Error")  # print error message
+                return
+            elif r not in range(0, 256) or g not in range(0, 256) or b not in range(0, 256) \
+                    or interval not in range(0, 256):
+                self._printError(">>> boundary exception")  # print error message
+                return
 
-        Args:
-            red: int value from 0 to 255
-            green: int value from 0 to 255
-            blue: int value from 0 to 255
+            self.sendLEDprocess(DataType.LightModeColor, LightModeDrone(mode.value), r, g, b, interval)
+        else:
+            self._printError(">>> Parameter Error")  # print error message
+
+    def setArmLED(self, r=-1, g=-1, b=-1, mode=-1, interval=100):
         """
-        if ((not isinstance(red, int)) or
-                (not isinstance(green, int)) or
-                (not isinstance(blue, int))):
-            self._printError(">>> Parameter Type Error")    # print error message
-            return None
+        This function sets the LED color of the arms, the light pattern, and the interval of the
+        light pattern. You can set the color based on input red, green, and blue values or using
+        predefined colors.
 
-        header = Header()
+        Syntax:
+            setArmLED(color, mode)
+            setArmLED(color, mode, interval)
+            setArmLED(red, green, blue, mode)
+            setArmLED(red, green, blue, mode, interval)
 
-        header.dataType = DataType.LightModeDefaultColor
-        header.length = LightModeDefaultColor.getSize()
+        Arguments:
+            r: int value from 0 to 255, or type Color
+            g: int value from 0 to 255, or type Mode
+            b: int value from 0 to 255
+            mode: an enum, which can be selected from the following predefined list: SOLID, STROBE, BLINK, DOUBLE_BLINK, DIMMING, PULSE, REVERSE_PULSE, OFF
+            interval: the interval of the light pattern, except for in the case of SOLID. For SOLID mode, this refers to the light's brightness.
 
-        data = LightModeDefaultColor()
-        data.mode = self._LEDEyeMode
-        self._LEDColor = [red, green, blue]
-        data.color.r = red
-        data.color.g = green
-        data.color.b = blue
-        data.interval = self._LEDInterval
+        Returns:
+            None
+        """
+        if isinstance(r, Color):
 
-        self._checkAck(header, data, 0.06, 0.4, 3)
+            if not isinstance(g, Mode):
+                self._printError(">>> Parameter Type Error")  # print error message
+                return
+            elif b not in range(-1, 256):
+                self._printError(">>> boundary exception")  # print error message
+                return
+            mode = g
+            interval = b if (b > 0) else 100
+            self.sendLEDprocess(DataType.LightMode, LightModeDrone(mode.value + 0x30), r, interval)
+
+        elif isinstance(r, int):
+
+            if not isinstance(mode, Mode):
+                self._printError(">>> Parameter Type Error")  # print error message
+                return
+            elif r not in range(0, 256) or g not in range(0, 256) or b not in range(0, 256) \
+                    or interval not in range(0, 256):
+                self._printError(">>> boundary exception")  # print error message
+                return
+
+            self.sendLEDprocess(DataType.LightModeColor, LightModeDrone(mode.value + 0x30), r, g, b, interval)
+
+        else:
+            self._printError(">>> Parameter Error")  # print error message
+
+    def setAllLED(self, r=-1, g=-1, b=-1, mode=-1, interval=100):
+        """
+        This function sets the LED color of both the arms and eyes, the light pattern, and the interval of the
+        light pattern. You can set the color based on input red, green, and blue values or using predefined
+        colors.
+
+        Syntax:
+            setAllLED(color, mode)
+            setAllLED(color, mode, interval)
+            setAllLED(red, green, blue, mode)
+            setAllLED(red, green, blue, mode, interval)
+
+        Arguments:
+            r: int value from 0 to 255, or type Color
+            g: int value from 0 to 255, or type Mode
+            b: int value from 0 to 255
+            mode: an enum, which can be selected from the following predefined list: SOLID, STROBE, BLINK, DOUBLE_BLINK, DIMMING, PULSE, REVERSE_PULSE, OFF
+            interval: the interval of the light pattern, except for in the case of SOLID. For SOLID mode, this refers to the light's brightness.
+
+        Returns:
+            None
+         """
+
+        if isinstance(r, Color):
+            if not isinstance(g, Mode):
+                self._printError(">>> Parameter Type Error")  # print error message
+                return
+            elif b not in range(-1, 256):
+                self._printError(">>> boundary exception")  # print error message
+                return
+
+            mode = g
+            interval = b if (b > 0) else 100
+            self.sendLEDprocess(DataType.LightMode2, LightModeDrone(mode.value), r, interval,
+                                LightModeDrone(mode.value + 0x30), r, interval)
+
+        elif isinstance(r, int):
+            if not isinstance(mode, Mode):
+                self._printError(">>> Parameter Type Error")  # print error message
+                return
+            elif r not in range(0, 256) or g not in range(0, 256) or b not in range(0, 256) \
+                    or interval not in range(0, 256):
+                self._printError(">>> boundary exception")  # print error message
+                return
+
+            self.sendLEDprocess(DataType.LightModeColor2, LightModeDrone(mode.value), r, g, b, interval,
+                                LightModeDrone(mode.value + 0x30), r, g, b, interval)
+        else:
+            self._printError(">>> Parameter Error")  # print error message
+
+    def setEyeDefaultLED(self, r=-1, g=-1, b=-1, mode=-1, interval=100):
+        """
+        This function sets the default LED color of the eyes as well as the mode, so it will remain that color
+        even after powering off and back on. The colors set are using RGB values.
+
+        Syntax:
+            setEyeDefaultLED(red, green, blue, mode)
+            setEyeDefaultLED(red, green, blue, mode, interval)
+
+        Arguments:
+            r: int value from 0 to 255, or type Color
+            g: int value from 0 to 255, or type Mode
+            b: int value from 0 to 255
+            mode: an enum, which can be selected from the following predefined list: SOLID, STROBE, BLINK, DOUBLE_BLINK, DIMMING, PULSE, REVERSE_PULSE, OFF
+            interval: the interval of the light pattern, except for in the case of SOLID. For SOLID mode, this refers to the light's brightness.
+
+        Returns:
+            None
+        """
+        if not isinstance(mode, Mode):
+            self._printError(">>> Parameter Type Error")  # print error message
+            return
+        elif r not in range(0, 256) or g not in range(0, 256) or b not in range(0, 256) \
+                or interval not in range(0, 256):
+            self._printError(">>> boundary exception")  # print error message
+            return
+
+        self.sendLEDprocess(DataType.LightModeDefaultColor, LightModeDrone(mode.value), r, g, b, interval)
+
+    def setArmDefaultLED(self, r=-1, g=-1, b=-1, mode=-1, interval=100):
+        """
+        This function sets the default LED color of the arms as well as the mode, so it will remain that color
+        even after powering off and back on. The colors are set using RGB values.
+
+        Syntax:
+            setArmDefaultLED(red, green, blue, mode)
+            setArmDefaultLED(red, green, blue, mode, interval)
+
+        Arguments:
+            r: int value from 0 to 255
+            g: int value from 0 to 255
+            b: int value from 0 to 255
+            mode: an enum, which can be selected from the following predefined list: SOLID, STROBE, BLINK, DOUBLE_BLINK, DIMMING, PULSE, REVERSE_PULSE, OFF
+            interval: the interval of the light pattern, except for in the case of SOLID. For SOLID mode, this refers to the light's brightness.
+
+        Returns:
+            None
+        """
+
+        if not isinstance(mode, Mode):
+            self._printError(">>> Parameter Type Error")  # print error message
+            return
+        elif r not in range(0, 256) or g not in range(0, 256) or b not in range(0, 256) \
+                or interval not in range(0, 256):
+            self._printError(">>> boundary exception")  # print error message
+            return
+
+        self.sendLEDprocess(DataType.LightModeDefaultColor, LightModeDrone(mode.value + 0x30), r, g, b, interval)
+
+    def setAllDefaultLED(self, r=-1, g=-1, b=-1, mode=-1, interval=100):
+        """
+        This function sets the default LED color of the eyes and arms as well as the mode, so it will remain that
+        color and light pattern even after powering off and back on. The colors are set using RGB values.
+
+        Syntax:
+            setAllDefaultLED(red, green, blue, mode)
+            setAllDefaultLED(red, green, blue, mode, interval)
+
+        Arguments:
+            r: int value from 0 to 255
+            g: int value from 0 to 255
+            b: int value from 0 to 255
+            mode: an enum, which can be selected from the following predefined list: SOLID, STROBE, BLINK, DOUBLE_BLINK, DIMMING, PULSE, REVERSE_PULSE, OFF
+            interval: the interval of the light pattern, except for in the case of SOLID. For SOLID mode, this refers to the light's brightness.
+
+        Returns:
+            None
+        """
+
+        if not isinstance(mode, Mode):
+            self._printError(">>> Parameter Type Error")  # print error message
+            return
+        elif r not in range(0, 256) or g not in range(0, 256) or b not in range(0, 256) \
+                or interval not in range(0, 256):
+            self._printError(">>> boundary exception")  # print error message
+            return
+        self.sendLEDprocess(DataType.LightModeDefaultColor2, LightModeDrone(mode.value), r, g, b, interval,
+                            LightModeDrone(mode.value + 0x30), r, g, b, interval)
 
     def resetDefaultLED(self):
         """This function sets the LED color of the eyes and arms back to red, which is the original default color.
         """
-        header = Header()
-
-        header.dataType = DataType.LightModeDefaultColor
-        header.length = LightModeDefaultColor.getSize()
-
-        data = LightModeDefaultColor()
-        data.mode = LightModeDrone.EyeHold
-        data.color.r = 255
-        data.color.g = 0
-        data.color.b = 0
-        data.interval = self._LEDInterval
-
-        self._checkAck(header, data, 0.06, 0.4, 3)
-
-        data.mode = LightModeDrone.ArmHold
-        self._checkAck(header, data, 0.06, 0.4, 3)
-
-    def setEyeMode(self, mode):
-        """This function sets the LED light mode of the eyes to behave in different patterns.
-
-        Args:
-            Member values in the Mode enum class. Mode class has NONE,HOLD, MIX, FLICKER, FLICKER_DOUBLE, DIMMING
-
-        Examples:
-            >>> setEyeMode(Mode.HOLD)
-        """
-        # EYE doesn't have flow mode
-        if not isinstance(mode, Mode) or mode.value > Mode.DIMMING.value:
-            self._printError(">>> Parameter Type Error")    # print error message
-            return None
-
-        self._LEDEyeMode = mode
-
-        header = Header()
-
-        header.dataType = DataType.LightModeColor
-        header.length = LightModeColor.getSize()
-
-        data = LightModeColor()
-
-        data.mode = self._LEDEyeMode
-        data.color.r, data.color.g, data.color.b = self._LEDColor
-        data.interval = self._LEDInterval
-
-        return self._checkAck(header, data, 0.06, 0.3, 3)
-
-    def setArmMode(self, mode):
-        """This function sets the LED light mode of the arms to behave in different patterns.
-
-        Args:
-            Member values in the Mode enum class. Mode class has NONE,HOLD, MIX, FLICKER, FLICKER_DOUBLE, DIMMING, FLOW, FLOW_REVERSE
-
-        Examples:
-            >>> setArmMode(Mode.HOLD)
-        """
-        if not isinstance(mode, Mode):
-            self._printError(">>> Parameter Type Error")  # print error message
-            return None
-
-        self._LEDArmMode = LightModeDrone(mode.value + 0x30)
-
-        header = Header()
-
-        header.dataType = DataType.LightModeColor
-        header.length = LightModeColor.getSize()
-
-        data = LightModeColor()
-
-        data.mode = self._LEDArmMode
-        data.color.r, data.color.g, data.color.b = self._LEDColor
-        data.interval = self._LEDInterval
-
-        self._checkAck(header, data, 0.06, 0.3, 3)
-
-    def setEyeDefaultMode(self, mode):
-        """This function sets the LED light default mode of the eyes to behave in different patterns.
-
-        Args:
-            Member values in the Mode enum class. Mode class has NONE,HOLD, MIX, FLICKER, FLICKER_DOUBLE, DIMMING
-
-        Examples:
-            >>> setEyeDefaultMode(Mode.HOLD)
-        """
-        # EYE doesn't have flow mode
-        if not isinstance(mode, Mode) or mode.value > Mode.DIMMING.value:
-            self._printError(">>> Parameter Type Error")  # print error message
-            return None
-
-        self._LEDEyeMode = mode
-
-        header = Header()
-
-        header.dataType = DataType.LightModeDefaultColor
-        header.length = LightModeDefaultColor.getSize()
-
-        data = LightModeDefaultColor()
-        data.mode = self._LEDEyeMode
-        data.color.r, data.color.g, data.color.b = self._LEDColor
-        data.interval = self._LEDInterval
-
-        self._checkAck(header, data, 0.06, 0.4, 3)
-
-    def setArmDefaultMode(self, mode):
-        """This function sets the LED light default mode of the arms to behave in different patterns.
-
-        Args:
-            Member values in the Mode enum class. Mode class has NONE,HOLD, MIX, FLICKER, FLICKER_DOUBLE, DIMMING, FLOW, FLOW_REVERSE
-
-        Examples:
-            >>> setArmDefaultMode(Mode.HOLD)
-        """
-        if not isinstance(mode, Mode):
-            self._printError(">>> Parameter Type Error")    # print error message
-            return None
-
-        self._LEDArmMode = LightModeDrone(mode.value + 0x30)
-
-        header = Header()
-
-        header.dataType = DataType.LightModeDefaultColor
-        header.length = LightModeDefaultColor.getSize()
-
-        data = LightModeDefaultColor()
-        data.mode = self._LEDArmMode
-        data.color.r, data.color.g, data.color.b = self._LEDColor
-        data.interval = self._LEDInterval
-
-        self._checkAck(header, data, 0.06, 0.3, 3)
+        self.sendLEDprocess(DataType.LightModeDefaultColor2, LightModeDrone.ArmHold, 255, 0, 0, 100,
+                            LightModeDrone.EyeHold, 255, 0, 0, 100)
 
     ### LEDS --------- END
-
 
     ### FLIGHT SEQUENCES -------- START
 
@@ -1823,7 +1815,7 @@ class CoDrone:
     def flySpiral(self):
 
         for i in range(5):
-            self.sendControl(10+2*i, 0, -50, 0)
+            self.sendControl(10 + 2 * i, 0, -50, 0)
             sleep(1)
 
         self.hover(1)
@@ -1864,12 +1856,11 @@ class CoDrone:
 
     ### FLIGHT SEQUENCES -------- END
 
-
     ### Link -------- Start
 
     def sendLinkModeBroadcast(self, modeLinkBroadcast):
         if (not isinstance(modeLinkBroadcast, ModeLinkBroadcast)):
-            self._printError(">>> Parameter Type Error")    # print error message
+            self._printError(">>> Parameter Type Error")  # print error message
             return None
 
         header = Header()
@@ -1929,7 +1920,7 @@ class CoDrone:
     def sendLinkConnect(self, index):
 
         if (not isinstance(index, int)):
-            self._printError(">>> Parameter Type Error")    # print error message
+            self._printError(">>> Parameter Type Error")  # print error message
             return None
 
         header = Header()
@@ -1988,7 +1979,6 @@ class CoDrone:
 
     ### LINK -------- END
 
-
     def setEventHandler(self, dataType, eventHandler):
         if not isinstance(dataType, DataType):
             return
@@ -1997,14 +1987,14 @@ class CoDrone:
 
     def getHeader(self, dataType):
         if not isinstance(dataType, DataType):
-            self._printError(">>> Parameter Type Error")    # print error message
+            self._printError(">>> Parameter Type Error")  # print error message
             return None
 
         return self._storageHeader.d[dataType]
 
     def getData(self, dataType):
         if (not isinstance(dataType, DataType)):
-            self._printError(">>> Parameter Type Error")    # print error message
+            self._printError(">>> Parameter Type Error")  # print error message
             return None
 
         return self._storage.d[dataType]
@@ -2012,11 +2002,10 @@ class CoDrone:
     def getCount(self, dataType):
 
         if not isinstance(dataType, DataType):
-            self._printError(">>> Parameter Type Error")    # print error message
+            self._printError(">>> Parameter Type Error")  # print error message
             return None
 
         return self._storageCount.d[dataType]
-
 
     ### LEGACY CODE -------- START
 
@@ -2065,7 +2054,7 @@ class CoDrone:
     def sendControlWhile(self, roll, pitch, yaw, throttle, timeMs):
 
         if ((not isinstance(roll, int)) or (not isinstance(pitch, int)) or (not isinstance(yaw, int)) or (
-        not isinstance(throttle, int))):
+                not isinstance(throttle, int))):
             return None
 
         timeSec = timeMs / 1000
@@ -2112,10 +2101,7 @@ class CoDrone:
 
     # Control End
 
-
-
     # Setup Start
-
 
     def sendCommand(self, commandType, option=0):
 
@@ -2188,7 +2174,7 @@ class CoDrone:
     def sendTrimFlight(self, roll, pitch, yaw, throttle):
 
         if ((not isinstance(roll, int)) or (not isinstance(pitch, int)) or (not isinstance(yaw, int)) or (
-        not isinstance(throttle, int))):
+                not isinstance(throttle, int))):
             return None
 
         header = Header()
@@ -2301,8 +2287,6 @@ class CoDrone:
 
     # Setup End
 
-
-
     # Device Start
 
     def sendMotor(self, motor0, motor1, motor2, motor3):
@@ -2352,16 +2336,13 @@ class CoDrone:
 
     # Device End
 
-
-
     # Light Start
-
 
     def sendLightMode(self, lightMode, colors, interval):
 
         if (((not isinstance(lightMode, LightModeDrone))) or
                 (not isinstance(interval, int)) or
-                (not isinstance(colors, Colors))):
+                (not isinstance(colors, Color))):
             return None
 
         header = Header()
@@ -2372,7 +2353,7 @@ class CoDrone:
         data = LightMode()
 
         data.mode = lightMode
-        data.colors = colors
+        data.color = colors
         data.interval = interval
 
         return self._transfer(header, data)
@@ -2381,7 +2362,7 @@ class CoDrone:
 
         if (((not isinstance(lightMode, LightModeDrone))) or
                 (not isinstance(interval, int)) or
-                (not isinstance(colors, Colors)) or
+                (not isinstance(colors, Color)) or
                 (not isinstance(commandType, CommandType)) or
                 (not isinstance(option, int))):
             return None
@@ -2406,7 +2387,7 @@ class CoDrone:
 
         if (((not isinstance(lightMode, LightModeDrone))) or
                 (not isinstance(interval, int)) or
-                (not isinstance(colors, Colors)) or
+                (not isinstance(colors, Color)) or
                 (not isinstance(commandType, CommandType)) or
                 (not isinstance(option, int)) or
                 (not isinstance(irData, int))):
@@ -2457,7 +2438,7 @@ class CoDrone:
     def sendLightEvent(self, lightEvent, colors, interval, repeat):
 
         if (((not isinstance(lightEvent, LightModeDrone))) or
-                (not isinstance(colors, Colors)) or
+                (not isinstance(colors, Color)) or
                 (not isinstance(interval, int)) or
                 (not isinstance(repeat, int))):
             return None
@@ -2470,7 +2451,7 @@ class CoDrone:
         data = LightEvent()
 
         data.event = lightEvent
-        data.colors = colors
+        data.color = colors
         data.interval = interval
         data.repeat = repeat
 
@@ -2479,7 +2460,7 @@ class CoDrone:
     def sendLightEventCommand(self, lightEvent, colors, interval, repeat, commandType, option):
 
         if (((not isinstance(lightEvent, LightModeDrone))) or
-                (not isinstance(colors, Colors)) or
+                (not isinstance(colors, Color)) or
                 (not isinstance(interval, int)) or
                 (not isinstance(repeat, int)) or
                 (not isinstance(commandType, CommandType)) or
@@ -2506,7 +2487,7 @@ class CoDrone:
     def sendLightEventCommandIr(self, lightEvent, colors, interval, repeat, commandType, option, irData):
 
         if (((not isinstance(lightEvent, LightModeDrone))) or
-                (not isinstance(colors, Colors)) or
+                (not isinstance(colors, Color)) or
                 (not isinstance(interval, int)) or
                 (not isinstance(repeat, int)) or
                 (not isinstance(commandType, CommandType)) or
@@ -2580,6 +2561,66 @@ class CoDrone:
         data.color.g = g
         data.color.b = b
         data.interval = interval
+
+        return self._transfer(header, data)
+
+    def sendLightMode2(self, lightMode1, color1, interval1, lightMode2, color2, interval2):
+
+        if (((not isinstance(lightMode1, LightModeDrone))) or
+                (not isinstance(interval1, int)) or
+                (not isinstance(color1, Color)) or
+                ((not isinstance(lightMode2, LightModeDrone))) or
+                (not isinstance(interval2, int)) or
+                (not isinstance(color2, Color))):
+            return None
+
+        header = Header()
+
+        header.dataType = DataType.LightMode2
+        header.length = LightMode2.getSize()
+
+        data = LightMode2()
+
+        data.lightMode1.mode = lightMode1
+        data.lightMode1.color = color1
+        data.lightMode1.interval = interval1
+        data.lightMode2.mode = lightMode2
+        data.lightMode2.color = color2
+        data.lightMode2.interval = interval2
+
+        return self._transfer(header, data)
+
+    def sendLightModeColor2(self, lightMode1, r1, g1, b1, interval1, lightMode2, r2, g2, b2, interval2):
+
+        if ((not isinstance(lightMode1, LightModeDrone)) or
+                (not isinstance(r1, int)) or
+                (not isinstance(g1, int)) or
+                (not isinstance(b1, int)) or
+                (not isinstance(interval1, int)) or
+                (not isinstance(lightMode2, LightModeDrone)) or
+                (not isinstance(r2, int)) or
+                (not isinstance(g2, int)) or
+                (not isinstance(b2, int)) or
+                (not isinstance(interval2, int))):
+            return None
+
+        header = Header()
+
+        header.dataType = DataType.LightModeColor2
+        header.length = LightModeColor2.getSize()
+
+        data = LightModeColor2()
+
+        data.lightModeColor1.mode = lightMode1
+        data.lightModeColor1.color.r = r1
+        data.lightModeColor1.color.g = g1
+        data.lightModeColor1.color.b = b1
+        data.lightModeColor1.interval = interval1
+        data.lightModeColor2.mode = lightMode2
+        data.lightModeColor2.color.r = r2
+        data.lightModeColor2.color.g = g2
+        data.lightModeColor2.color.b = b2
+        data.lightModeColor2.interval = interval2
 
         return self._transfer(header, data)
 
