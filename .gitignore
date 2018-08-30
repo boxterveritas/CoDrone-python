@@ -2,8 +2,9 @@ build/
 CoDrone.egg-info/
 dist/
 CoDrone/__pycache__/
-CoDrone/test.py
+test.py
 setup.py
+PairInfo
 *.xml
 *.iml
 
