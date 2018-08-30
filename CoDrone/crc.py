@@ -77,4 +77,3 @@ class CRC16:
                 result = ((result << 8) ^ cls.table[index]) & 0xFFFF
 
         return result
-

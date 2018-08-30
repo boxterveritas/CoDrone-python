@@ -3,6 +3,7 @@ from struct import *
 import time
 from CoDrone.system import *
 
+
 # ISerializable Start
 
 
@@ -87,7 +88,7 @@ class Data(EventStatesFunc):
 
     def eventUpdateAttitude(self, data):
         self.attitude = Angle(data.roll, data.pitch, data.yaw)
-        self.timer.address[1] = time.time()
+        self.timer.attitude[1] = time.time()
 
     def eventUpdateBattery(self, data):
         self.batteryPercent = data.batteryPercent
@@ -186,7 +187,7 @@ class DataType(Enum):
     LightMode = 0x20  # set LED Mode
     LightMode2 = 0x21  # set LED Mode
     LightModeCommand = 0x22  # set LED Mode Commend
-    LightModeCommandIr = 0x23 # set LED Mode Commend IR
+    LightModeCommandIr = 0x23  # set LED Mode Commend IR
     LightModeColor = 0x24  # set LED Mode RGB color
     LightModeColor2 = 0x25  # set LED Mode RGB color
 
@@ -247,7 +248,6 @@ class DataType(Enum):
 # DataType End
 
 
-
 # CommandType Start
 
 
@@ -267,7 +267,7 @@ class CommandType(Enum):
     ResetHeading = 0x50  # head reset
     ClearGyroBias = 0x51  # clear trim and gyroBias
     ClearTrim = 0x52  # clear trim
-    Calibrate = 0x53 #calibration
+    Calibrate = 0x53  # calibration
 
     # Wireless Lan
     ResetWirelessLan = 0x70
@@ -280,7 +280,7 @@ class CommandType(Enum):
     AdvertisingStart = 0x82
     AdvertisingStop = 0x83
     TerminateConnection = 0x84
-    ClearBondList = 0x85 #clear bond device info
+    ClearBondList = 0x85  # clear bond device info
 
     # request
     Request = 0x90
@@ -301,7 +301,6 @@ class CommandType(Enum):
 
 
 # CommandType End
-
 
 
 # Header Start
@@ -334,7 +333,6 @@ class Header(ISerializable):
 
 
 # Header End
-
 
 
 # Common Start
@@ -386,6 +384,7 @@ class Ack(ISerializable):
 
         return data
 
+
 class Request(ISerializable):
     def __init__(self):
         self.dataType = DataType.None_
@@ -432,6 +431,7 @@ class Passcode(ISerializable):
 
         return data
 
+
 class Move():
     def __init__(self):
         self._roll = 0
@@ -439,7 +439,7 @@ class Move():
         self._yaw = 0
         self._throttle = 0
 
-    def _checkValue(self,value):
+    def _checkValue(self, value):
         try:
             value = int(value)
         except ValueError as err:
@@ -452,7 +452,7 @@ class Move():
         return value
 
     def getAll(self):
-        return self._roll,self._pitch, self._yaw, self._throttle
+        return self._roll, self._pitch, self._yaw, self._throttle
 
     def setAll(self, roll, pitch, yaw, throttle):
         self._roll = self._checkValue(roll)
@@ -608,7 +608,6 @@ class Command3(ISerializable):
 
 
 # Common End
-
 
 
 # Light Start
@@ -933,7 +932,6 @@ class LightModeCommandIr(ISerializable):
         return data
 
 
-
 class LightModeColor(ISerializable):
     def __init__(self):
         self.mode = LightModeDrone.None_
@@ -1216,7 +1214,6 @@ class LightModeDefaultColor2(LightModeColor2):
 
 
 # Light End
-
 
 
 # Information Start
@@ -1736,7 +1733,6 @@ class Range(ISerializable):
 # Information End
 
 
-
 # Update
 
 
@@ -1857,7 +1853,6 @@ class UpdateLocationCorrect(ISerializable):
 
 
 # Update End
-
 
 
 # Link Start
@@ -2035,7 +2030,6 @@ class LinkPasscode(ISerializable):
 
 
 # Link End
-
 
 
 # Message Start

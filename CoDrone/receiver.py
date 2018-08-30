@@ -5,6 +5,7 @@ from time import clock
 from CoDrone.protocol import Header
 from CoDrone.protocol import DataType
 
+
 class StateLoading(Enum):
     Ready = 0x00
     Receiving = 0x01

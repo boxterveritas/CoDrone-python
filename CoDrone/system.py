@@ -1,5 +1,6 @@
 from enum import Enum
 
+
 class Flight:
     def __init__(self, roll, pitch, yaw, throttle):
         self.ROLL = roll
@@ -7,10 +8,12 @@ class Flight:
         self.YAW = yaw
         self.THROTTLE = throttle
 
+
 class Position:
     def __init__(self, x, y):
         self.X = x
         self.Y = y
+
 
 class Angle:
     def __init__(self, roll, pitch, yaw):
@@ -18,11 +21,13 @@ class Angle:
         self.PITCH = pitch
         self.YAW = yaw
 
+
 class Axis:
     def __init__(self, x, y, z):
         self.X = x
         self.Y = y
         self.Z = z
+
 
 class Sequence(Enum):
     None_ = 0x00
@@ -69,15 +74,15 @@ class Mode(Enum):
 
 class ModeFlight(Enum):
     None_ = 0x00
-    READY = 0x01    # ready
+    READY = 0x01  # ready
     TAKE_OFF = 0x02  # take off (change to flight mode automatically)
-    FLIGHT = 0x03   # flight
-    FLIP = 0x04     # not support
-    STOP = 0x05     # force stop(kill switch)
+    FLIGHT = 0x03  # flight
+    FLIP = 0x04  # not support
+    STOP = 0x05  # force stop(kill switch)
     LANDING = 0x06  # Landing
     REVERSE = 0x07  # upside down
-    ACCIDENT = 0x08 # accident (change to ready mode automatically)
-    ERROR = 0x09    # error
+    ACCIDENT = 0x08  # accident (change to ready mode automatically)
+    ERROR = 0x09  # error
     EndOfType = 0x0A
 
 
@@ -98,10 +103,10 @@ class Direction(Enum):
 
 class DeviceType(Enum):
     None_ = 0x00
-    DroneMain = 0x01    # Drone control
-    DroneSub = 0x02     # Drone communication
-    Link = 0x03         # Link module
-    Tester = 0x04       # tester
+    DroneMain = 0x01  # Drone control
+    DroneSub = 0x02  # Drone communication
+    Link = 0x03  # Link module
+    Tester = 0x04  # tester
     EndOfType = 0x05
 
 
@@ -117,9 +122,9 @@ class ImageType(Enum):
     EncryptedImageA = 0x05
     EncryptedImageB = 0x06
     # device image (CC253x / CC254x)
-    ImageSingle = 0x07          # run Image
-    RawImageSingle = 0x08       # uodate Image include header
-    EncryptedImageSingle = 0x09 # uodate Image include header
+    ImageSingle = 0x07  # run Image
+    RawImageSingle = 0x08  # uodate Image include header
+    EncryptedImageSingle = 0x09  # uodate Image include header
 
     EndOfType = 0x0A
 
@@ -127,18 +132,18 @@ class ImageType(Enum):
 class ModeSystem(Enum):
     None_ = 0x00
 
-    Boot = 0x01             # boot
-    Wait = 0x02             # wait for connection
-    Ready = 0x03            # ready
-    Running = 0x04          # main code run
-    Update = 0x05           # firmware update
-    UpdateComplete = 0x06   # finish firmware update
-    Error = 0x07            # firmware update error
+    Boot = 0x01  # boot
+    Wait = 0x02  # wait for connection
+    Ready = 0x03  # ready
+    Running = 0x04  # main code run
+    Update = 0x05  # firmware update
+    UpdateComplete = 0x06  # finish firmware update
+    Error = 0x07  # firmware update error
     EndOfType = 0x08
 
 
 class ModeVehicle(Enum):
-    #mode for CoDronee
+    # mode for CoDronee
     None_ = 0x00
     FlightGuard = 0x10
     FlightNoGuard = 0x11
@@ -150,12 +155,12 @@ class ModeVehicle(Enum):
 
 
 class ModeDrive(Enum):
-    #for drive mode(drive kit)
+    # for drive mode(drive kit)
     None_ = 0x00
     Ready = 0x01  # ready
     Start = 0x02  # start
     Drive = 0x03  # drive
-    Stop = 0x04   # force stop(kill stwich)
+    Stop = 0x04  # force stop(kill stwich)
     Accident = 0x05  # accident (change to ready mode automatically)
     Error = 0x06  # error
     EndOfType = 0x07
@@ -164,10 +169,10 @@ class ModeDrive(Enum):
 class ModeUpdate(Enum):
     None_ = 0x00
 
-    Ready = 0x01    # ready for modeupdate
-    Update = 0x02   # updating
-    Complete = 0x03 # finish update
-    Faild = 0x04    # faild (ex : update finish but body's CRC16 is not match)
+    Ready = 0x01  # ready for modeupdate
+    Update = 0x02  # updating
+    Complete = 0x03  # finish update
+    Faild = 0x04  # faild (ex : update finish but body's CRC16 is not match)
     EndOfType = 0x05
 
 
@@ -189,13 +194,13 @@ class ModeLinkBroadcast(Enum):
 
     Mute = 0x01  # block data request
     Active = 0x02  # data transport request and some auto thing
-    Passive = 0x03 # reply just request things - no data transport when status is change
+    Passive = 0x03  # reply just request things - no data transport when status is change
 
     EndOfType = 0x07
 
 
 class EventLink(Enum):
-    #bluetooth board
+    # bluetooth board
 
     None_ = 0x00
     SystemReset = 0x01
@@ -250,14 +255,14 @@ class FlightEvent(Enum):
     None_ = 0x00
 
     TakeOff = 0x01
-    FlipFront = 0x02    # Reserved
-    FlipRear = 0x03     # Reserved
-    FlipLeft = 0x04     # Reserved
-    FlipRight = 0x05    # Reserved
-    Stop = 0x06     # force stop
+    FlipFront = 0x02  # Reserved
+    FlipRear = 0x03  # Reserved
+    FlipLeft = 0x04  # Reserved
+    FlipRight = 0x05  # Reserved
+    Stop = 0x06  # force stop
     Landing = 0x07
     Reverse = 0x08  # upside down
-    Shot = 0x09     # shoot IR missile
+    Shot = 0x09  # shoot IR missile
     UnderAttack = 0x0A  # be hitted by IR missile
 
     EndOfType = 0x0B
@@ -302,5 +307,3 @@ class Trim(Enum):
     Reset = 0x09  # reset all trim
 
     EndOfType = 0x0A
-
-
