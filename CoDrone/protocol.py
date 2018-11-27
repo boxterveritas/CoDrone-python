@@ -74,7 +74,8 @@ class Data(EventStatesFunc):
         self.reversed = 0
         self.temperature = 0
         self.trim = Flight(0, 0, 0, 0)
-        self.range = 0
+        self.range = [0]
+        self.rangetime = [0]
         self.state = 0
         self.ack = Ack()
 
@@ -89,16 +90,19 @@ class Data(EventStatesFunc):
     def eventUpdateAttitude(self, data):
         self.attitude = Angle(data.roll, data.pitch, data.yaw)
         self.timer.attitude[1] = time.time()
+        print("update Attitude")
 
     def eventUpdateBattery(self, data):
         self.batteryPercent = data.batteryPercent
         self.batteryVoltage = data.voltage
         self.timer.battery[1] = time.time()
+        print("update battery")
 
     def eventUpdateImu(self, data):
         self.accel = Axis(data.accelX, data.accelY, data.accelZ)
         self.gyro = Angle(data.gyroRoll, data.gyroPitch, data.gyroYaw)
         self.timer.imu[1] = time.time()
+        print("update imu")
 
     def eventUpdatePressure(self, data):
         self.pressure = data.pressure
@@ -106,8 +110,12 @@ class Data(EventStatesFunc):
         self.timer.pressure[1] = time.time()
 
     def eventUpdateRange(self, data):
-        self.range = data.bottom
+        self.range.append(data.bottom)
         self.timer.range[1] = time.time()
+        self.rangetime.append(time.process_time())
+        # print(self.range)
+        # print(self.rangetime)
+        print("update Range")
 
     def eventUpdateState_(self, data):
         self.reversed = data.sensorOrientation
@@ -162,6 +170,7 @@ class Data(EventStatesFunc):
     def eventUpdateImageFlow(self, data):
         self.imageFlow = Position(data.positionX, data.positionY)
         self.timer.imageFlow[1] = time.time()
+        print("update Flow")
 
     def eventUpdateAck(self, data):
         self.ack = data

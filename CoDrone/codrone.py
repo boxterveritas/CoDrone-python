@@ -1,7 +1,6 @@
 from operator import eq
 from queue import Queue
-from threading import RLock
-from threading import Thread
+from threading import RLock, Thread
 from time import sleep
 import colorama
 from colorama import Fore, Back, Style
@@ -10,6 +9,7 @@ from serial.tools.list_ports import comports
 import os.path
 from CoDrone.receiver import *
 from CoDrone.storage import *
+import matplotlib.pyplot as plt
 
 
 def convert_byte_array_to_string(data_array):
@@ -71,6 +71,10 @@ class CoDrone:
         self._timer = Timer()
         self._data = Data(self._timer)
         self._set_all_event_handler()
+        self._plot_setup = False
+        self.height_fig = type(plt.Figure)
+        self.height_axes = type(plt.Axes)
+        self.line_height = type(plt.Line2D)
 
         # Parameter
         self._lowBatteryPercent = 30    # when the program starts, battery alert percentage
@@ -217,6 +221,49 @@ class CoDrone:
                     self.send_request(DataType.State)
                     sleep(0.01)
             sleep(2)
+
+    def _grab_sensor_in_background(self, lock):
+        self._lockState = RLock()
+        while self._flagThreadRun:
+            if self._flagConnected:
+                with lock and self._lockState:
+                    print("---------s----------")
+                    # for data in args:
+                    #     self.send_request(data)
+                    #     sleep(0.01)
+                    self.send_request(DataType.Range)
+                    sleep(0.03)
+                    self.send_request(DataType.Attitude)
+                    sleep(0.03)
+                    self.send_request(DataType.Battery)
+                    sleep(0.03)
+                    self.send_request(DataType.ImageFlow)
+                    sleep(0.03)
+                    print("---------e----------")
+
+                        # try:
+                        #     self.line_height.set_xdata(self._data.rangetime)
+                        #     self.line_height.set_ydata(self._data.range)
+                        #     self.height_axes.relim()
+                        #     self.height_axes.autoscale_view(True, True, True)
+                        #     self.height_fig.canvas.draw_idle()
+                        #     plt.pause(1e-17)
+                        # except AttributeError:
+                        #     pass
+            sleep(2)
+
+    def testplot(self, *args):
+
+        self._plot_setup = True
+        print("plot init")
+        self.height_fig, self.height_axes = plt.subplots()
+        self.height_axes.grid(linestyle='-')
+        self.height_axes.set_ylim(0, 2500)
+        self.line_height, = self.height_axes.plot(self._data.range, self._data.rangetime, 'r-', label="Height")
+        handles, labels = self.height_axes.get_legend_handles_labels()
+        self.height_axes.legend(handles, labels)
+        self.height_axes.set_title('Height sensor')
+        plt.show()
 
     def lockState(func):
         """This function is a decorator for thread-locking.
@@ -402,7 +449,8 @@ class CoDrone:
 
         if self.isOpen():
             self._flagThreadRun = True
-            self._threadSendState = Thread(target=self._send_request_state, args=(self._lock,), daemon=True).start()
+            # self._threadSendState = Thread(target=self._send_request_state, args=(self._lock,), daemon=True).start()
+            self._threadSendState = Thread(target=self._grab_sensor_in_background, args=(self._lock,), daemon=True).start()
             self._threadReceiving = Thread(target=self._receiving, args=(self._lock, self._lockState,),
                                            daemon=True).start()
 
@@ -514,47 +562,47 @@ class CoDrone:
                 else:
                     self._print_error(">> Could not find CoDrone.")
 
-            # using CoDrone number
-            else:
-                # check the name of connected device
-                target_device = None
-
-                if eq(device_name, "None"):
-                    f = open('PairInfo', 'r')
-                    device_name = f.readline()
-                    f.close()
-                if len(self._devices) > 0:
-                    if len(device_name) == 4:
-                        for i in range(len(self._devices)):
-                            if (len(self._devices[i].name) > 12) and (device_name == self._devices[i].name[8:12]):
-                                target_device = self._devices[i]
-                                break
-
-                        if target_device is not None:
-                            closest_device = target_device
-
-                            # if find the device, connect the device
-                            self._flagConnected = False
-                            self.send_link_connect(target_device.index)
-
-                            # wait for 5 seconds to connect the device
-                            for i in range(50):
-                                sleep(0.1)
-                                if self._flagConnected:
-                                    break
-
-                            # connect and wait another 1.2 seconds.
-                            sleep(1.2)
-
-                        else:
-                            self._print_error(">> Could not find " + device_name + ".")
-
-                    else:
-                        self._print_error(">> Device name length error(" + device_name + ").")
-
-                else:
-                    self._print_error(">> Could not find CoDrone.")
-
+        #     # using CoDrone number
+        #     else:
+        #         # check the name of connected device
+        #         target_device = None
+        #
+        #         if eq(device_name, "None"):
+        #             f = open('PairInfo', 'r')
+        #             device_name = f.readline()
+        #             f.close()
+        #         if len(self._devices) > 0:
+        #             if len(device_name) == 4:
+        #                 for i in range(len(self._devices)):
+        #                     if (len(self._devices[i].name) > 12) and (device_name == self._devices[i].name[8:12]):
+        #                         target_device = self._devices[i]
+        #                         break
+        #
+        #                 if target_device is not None:
+        #                     closest_device = target_device
+        #
+        #                     # if find the device, connect the device
+        #                     self._flagConnected = False
+        #                     self.send_link_connect(target_device.index)
+        #
+        #                     # wait for 5 seconds to connect the device
+        #                     for i in range(50):
+        #                         sleep(0.1)
+        #                         if self._flagConnected:
+        #                             break
+        #
+        #                     # connect and wait another 1.2 seconds.
+        #                     sleep(1.2)
+        #
+        #                 else:
+        #                     self._print_error(">> Could not find " + device_name + ".")
+        #
+        #             else:
+        #                 self._print_error(">> Device name length error(" + device_name + ").")
+        #
+        #         else:
+        #             self._print_error(">> Could not find CoDrone.")
+        #
             if self._flagConnected:
                 battery = self.get_battery_percentage()
                 print(">> Drone : [{}]\n>> Battery : [{}]".format(closest_device.name[8:12], battery))
