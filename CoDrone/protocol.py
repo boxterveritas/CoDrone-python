@@ -37,10 +37,10 @@ class Timer:
     def __init__(self):
         # [ time interval, variable to save start time ]
         self.address = [0, 0]
-        self.attitude = [0.1, 0]
+        self.attitude = [0.5, 0]
         self.battery = [5, 0]
         self.imu = [0, 0]
-        self.pressure = [3, 0]
+        self.pressure = [0, 0]
         self.trim = [0, 0]
         self.range = [0, 0]
         self.state = [0.1, 0]
@@ -65,17 +65,31 @@ class Data(EventStatesFunc):
         self.timer = timer
         self.address = 0
         self.attitude = Angle(0, 0, 0)
+        self.attitude_roll = [0]
+        self.attitude_pitch = [0]
+        self.attitude_yaw = [0]
         self.accel = Axis(0, 0, 0)
+        self.accel_x = [0]
+        self.accel_y = [0]
+        self.accel_z = [0]
         self.batteryPercent = 0
         self.batteryVoltage = 0
         self.gyro = Angle(0, 0, 0)
+        self.gyro_roll = [0]
+        self.gyro_pitch = [0]
+        self.gyro_yaw = [0]
         self.imageFlow = Position(0, 0)
-        self.pressure = 0
+        self.imageFlow_x = [0]
+        self.imageFlow_y = [0]
+        self.pressure = [0]
         self.reversed = 0
-        self.temperature = 0
+        self.temperature = [0]
         self.trim = Flight(0, 0, 0, 0)
-        self.range = [0]
-        self.rangetime = [0]
+        self.range = [0.0]
+        self.range_time = [0.0]
+        self.attitude_time = [0.0]
+        self.imu_time = [0.0]
+        self.pressure_time = [0.0]
         self.state = 0
         self.ack = Ack()
 
@@ -89,30 +103,42 @@ class Data(EventStatesFunc):
 
     def eventUpdateAttitude(self, data):
         self.attitude = Angle(data.roll, data.pitch, data.yaw)
+        self.attitude_roll.append(self.attitude.ROLL)
+        self.attitude_pitch.append(self.attitude.PITCH)
+        self.attitude_yaw.append(self.attitude.YAW)
+        self.attitude_time.append(time.process_time())
         self.timer.attitude[1] = time.time()
-        print("update Attitude")
+        #print("update Attitude")
 
     def eventUpdateBattery(self, data):
         self.batteryPercent = data.batteryPercent
         self.batteryVoltage = data.voltage
         self.timer.battery[1] = time.time()
-        print("update battery")
+        #print("update battery")
 
     def eventUpdateImu(self, data):
         self.accel = Axis(data.accelX, data.accelY, data.accelZ)
+        self.accel_x.append(self.accel.X)
+        self.accel_y.append(self.accel.Y)
+        self.accel_z.append(self.accel.Z)
         self.gyro = Angle(data.gyroRoll, data.gyroPitch, data.gyroYaw)
+        self.gyro_roll.append(self.gyro.ROLL)
+        self.gyro_pitch.append(self.gyro.PITCH)
+        self.gyro_yaw.append(self.gyro.YAW)
+        self.imu_time.append(time.process_time())
         self.timer.imu[1] = time.time()
-        print("update imu")
+        #print("update imu")
 
     def eventUpdatePressure(self, data):
-        self.pressure = data.pressure
-        self.temperature = data.temperature
+        self.pressure.append(data.pressure)
+        self.temperature.append(data.temperature)
+        self.pressure_time.append(time.process_time())
         self.timer.pressure[1] = time.time()
 
     def eventUpdateRange(self, data):
         self.range.append(data.bottom)
         self.timer.range[1] = time.time()
-        self.rangetime.append(time.process_time())
+        self.range_time.append(time.process_time())
         # print(self.range)
         # print(self.rangetime)
         print("update Range")
@@ -169,12 +195,13 @@ class Data(EventStatesFunc):
 
     def eventUpdateImageFlow(self, data):
         self.imageFlow = Position(data.positionX, data.positionY)
+        self.imageFlow_x = self.imageFlow.X
+        self.imageFlow_y = self.imageFlow.Y
         self.timer.imageFlow[1] = time.time()
-        print("update Flow")
+        # print("update Flow")
 
     def eventUpdateAck(self, data):
         self.ack = data
-
 
 # DataType Start
 class DataType(Enum):
@@ -256,6 +283,14 @@ class DataType(Enum):
 
 # DataType End
 
+class PlotType(Enum):
+    pressure = 1
+    image_flow = 2
+    temperature = 3
+    height = 4
+    gyro = 5
+    accel = 6
+    angle = 7
 
 # CommandType Start
 

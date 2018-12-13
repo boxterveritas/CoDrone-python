@@ -9,7 +9,10 @@ from serial.tools.list_ports import comports
 import os.path
 from CoDrone.receiver import *
 from CoDrone.storage import *
+from CoDrone.protocol import *
 import matplotlib.pyplot as plt
+import logging
+import time
 
 
 def convert_byte_array_to_string(data_array):
@@ -25,6 +28,35 @@ def convert_byte_array_to_string(data_array):
     return string
 
 
+class _Plot:
+    def __init__(self):
+        self._plot_setup = False
+        self._auto_update = False
+        self.height_flag = False
+        self.height_axes = type(plt.Axes)
+        self.pressure_flag = False
+        self.pressure_axes = type(plt.Axes)
+        self.temp_flag = False
+        self.temp_axes = type(plt.Axes)
+        self.angle_flag = False
+        self.angle_roll_axes = type(plt.Axes)
+        self.angle_pitch_axes = type(plt.Axes)
+        self.angle_yaw_axes = type(plt.Axes)
+        self.imu_gyro_flag = False
+        self.imu_gyro_roll_axes = type(plt.Axes)
+        self.imu_gyro_pitch_axes = type(plt.Axes)
+        self.imu_gyro_yaw_axes = type(plt.Axes)
+        self.imu_accel_flag = False
+        self.imu_accel_x_axes = type(plt.Axes)
+        self.imu_accel_y_axes = type(plt.Axes)
+        self.imu_accel_z_axes = type(plt.Axes)
+        self.opt_flag = False
+        self.opt_axes = type(plt.Axes)
+
+
+
+
+
 class CoDrone:
 
     def __init__(self, flag_check_background=True, flag_show_error_message=False, flag_show_log_message=False,
@@ -34,6 +66,7 @@ class CoDrone:
         self._bufferQueue = Queue(4096)
         self._bufferHandler = bytearray()
         self._index = 0
+        self._st = time.time()
 
         # Thread
         self._threadReceiving = None
@@ -71,10 +104,11 @@ class CoDrone:
         self._timer = Timer()
         self._data = Data(self._timer)
         self._set_all_event_handler()
-        self._plot_setup = False
-        self.height_fig = type(plt.Figure)
-        self.height_axes = type(plt.Axes)
-        self.line_height = type(plt.Line2D)
+
+        # Plot
+        self._plot = _Plot()
+        self._sensor_list = set()
+
 
         # Parameter
         self._lowBatteryPercent = 30    # when the program starts, battery alert percentage
@@ -96,6 +130,7 @@ class CoDrone:
         self._lockReceiving = RLock()
         while self._flagThreadRun:
             # lock other threads for reading
+            # print('receive : ' + (self._st - time.time()).__str__())
             with lock and lock_state and self._lockReceiving:
                 self._bufferQueue.put(self._serialPort.read())
 
@@ -220,6 +255,7 @@ class CoDrone:
                 with lock and self._lockState:
                     self.send_request(DataType.State)
                     sleep(0.01)
+                    print('receive : ' + (self._st - time.time()).__str__())
             sleep(2)
 
     def _grab_sensor_in_background(self, lock):
@@ -227,43 +263,159 @@ class CoDrone:
         while self._flagThreadRun:
             if self._flagConnected:
                 with lock and self._lockState:
-                    print("---------s----------")
-                    # for data in args:
-                    #     self.send_request(data)
-                    #     sleep(0.01)
-                    self.send_request(DataType.Range)
+                    self.send_request(DataType.State)
                     sleep(0.03)
-                    self.send_request(DataType.Attitude)
-                    sleep(0.03)
-                    self.send_request(DataType.Battery)
-                    sleep(0.03)
-                    self.send_request(DataType.ImageFlow)
-                    sleep(0.03)
-                    print("---------e----------")
+                    if self._plot._plot_setup:
+                        print("-------------start------------------")
+                        self._request_sensor(*self._sensor_list)
+                        if self._plot._auto_update:
+                            self._draw_plot()
+                    # print('data : ' + (self._st - time.time()).__str__())
+            sleep(1)
 
-                        # try:
-                        #     self.line_height.set_xdata(self._data.rangetime)
-                        #     self.line_height.set_ydata(self._data.range)
-                        #     self.height_axes.relim()
-                        #     self.height_axes.autoscale_view(True, True, True)
-                        #     self.height_fig.canvas.draw_idle()
-                        #     plt.pause(1e-17)
-                        # except AttributeError:
-                        #     pass
-            sleep(2)
+    def _request_sensor(self, *args):
+        for sensor in args:
+            if not isinstance(sensor, DataType) and isinstance(sensor, PlotType):
+                self._print_error(">>> Parameter Type Error")  # print error message
+                sleep(0.03)
+                continue
+            self.send_request(sensor)
+            sleep(0.03)
 
-    def testplot(self, *args):
+    def plot_sensor(self, *args, auto=False):
+        if not self._plot._plot_setup:
+            self._plot._plot_setup = True
+            print("plot init")
 
-        self._plot_setup = True
-        print("plot init")
-        self.height_fig, self.height_axes = plt.subplots()
-        self.height_axes.grid(linestyle='-')
-        self.height_axes.set_ylim(0, 2500)
-        self.line_height, = self.height_axes.plot(self._data.range, self._data.rangetime, 'r-', label="Height")
-        handles, labels = self.height_axes.get_legend_handles_labels()
-        self.height_axes.legend(handles, labels)
-        self.height_axes.set_title('Height sensor')
+        for sensor in args:
+            if not isinstance(sensor, PlotType):
+                print("error")
+                self._print_error(">>> Parameter Type Error")  # print error message
+                sleep(0.03)
+                continue
+            self._set_plot_data(sensor)
+            print(sensor)
+            self._sensor_list.add(self._plottype_to_datatype(sensor))
+            print(self._sensor_list)
+        if auto:
+            self._plot._auto_update = True
+            print("auto update start")
+            self._draw_plot()
+        sleep(1)
+
+    def _plottype_to_datatype(self, sensor):
+        if sensor == PlotType.angle:
+            return DataType.Attitude
+        elif sensor == PlotType.accel or sensor == PlotType.gyro:
+            return DataType.Imu
+        elif sensor == PlotType.pressure or sensor == PlotType.temperature:
+            return DataType.Pressure
+        elif sensor == PlotType.height:
+            return DataType.Range
+        elif sensor == PlotType.image_flow:
+            return DataType.ImageFlow
+
+    def _draw_plot(self):
+        if self._plot.height_flag:
+            self._plot.height_axes.plot(self._data.range_time, self._data.range, 'ro-', label='height')
+        if self._plot.pressure_flag:
+            self._plot.pressure_axes.plot(self._data.pressure_time, self._data.pressure, 'ro-', label='pressure')
+        if self._plot.temp_flag:
+            self._plot.temp_axes.plot(self._data.pressure_time, self._data.temperature, 'ro-', label='temperature')
+        if self._plot.imu_accel_flag:
+            self._plot.imu_accel_x_axes.plot(self._data.imu_time, self._data.accel_x, 'ro-', label='x')
+            self._plot.imu_accel_y_axes.plot(self._data.imu_time, self._data.accel_y, 'bo-', label='y')
+            self._plot.imu_accel_z_axes.plot(self._data.imu_time, self._data.accel_z, 'go-', label='z')
+        if self._plot.imu_gyro_flag:
+            self._plot.imu_gyro_roll_axes.plot(self._data.imu_time, self._data.gyro_roll, 'ro-', label='roll')
+            self._plot.imu_gyro_pitch_axes.plot(self._data.imu_time, self._data.gyro_pitch, 'bo-', label='pitch')
+            self._plot.imu_gyro_yaw_axes.plot(self._data.imu_time, self._data.gyro_yaw, 'go-', label='yaw')
+        if self._plot.angle_flag:
+            self._plot.angle_roll_axes.plot(self._data.attitude_time, self._data.attitude_roll, 'r-', label='roll')
+            self._plot.angle_pitch_axes.plot(self._data.attitude_time, self._data.attitude_pitch, 'b-', label='pitch')
+            self._plot.angle_yaw_axes.plot(self._data.attitude_time, self._data.attitude_yaw, 'g-', label='yaw')
+        if self._plot.opt_flag:
+            self._plot.opt_axes.plot(self._data.imageFlow_x, self._data.imageFlow_y, 'b-', label='position')
+        plt.draw()
+        plt.pause(1e-17)
+
+    def draw_plot(self):
+        if self._plot.height_flag:
+            self._plot.height_axes.plot(self._data.range_time, self._data.range, 'ro-', label='height')
+            print(self._data.range_time)
+            print(self._data.range)
+            self._plot._plot_setup = False
+
+        if self._plot.pressure_flag:
+            self._plot.pressure_axes.plot(self._data.pressure_time, self._data.pressure, 'ro-', label='pressure')
+        if self._plot.temp_flag:
+            self._plot.temp_axes.plot(self._data.pressure_time, self._data.temperature, 'ro-', label='temperature')
+        if self._plot.imu_accel_flag:
+            self._plot.imu_accel_x_axes.plot(self._data.imu_time, self._data.accel_x, 'ro-', label='x')
+            self._plot.imu_accel_y_axes.plot(self._data.imu_time, self._data.accel_y, 'bo-', label='y')
+            self._plot.imu_accel_z_axes.plot(self._data.imu_time, self._data.accel_z, 'go-', label='z')
+        if self._plot.imu_gyro_flag:
+            self._plot.imu_gyro_roll_axes.plot(self._data.imu_time, self._data.gyro_roll, 'ro-', label='roll')
+            self._plot.imu_gyro_pitch_axes.plot(self._data.imu_time, self._data.gyro_pitch, 'bo-', label='pitch')
+            self._plot.imu_gyro_yaw_axes.plot(self._data.imu_time, self._data.gyro_yaw, 'go-', label='yaw')
+        if self._plot.angle_flag:
+            self._plot.angle_roll_axes.plot(self._data.attitude_time, self._data.attitude_roll, 'r-', label='roll')
+            self._plot.angle_pitch_axes.plot(self._data.attitude_time, self._data.attitude_pitch, 'b-', label='pitch')
+            self._plot.angle_yaw_axes.plot(self._data.attitude_time, self._data.attitude_yaw, 'g-', label='yaw')
+        if self._plot.opt_flag:
+            self._plot.opt_axes.plot(self._data.imageFlow_x, self._data.imageFlow_y, 'b-', label='position')
         plt.show()
+
+    def _set_plot_data(self, plot_type):
+        axes3 = None
+        axes = []
+        if plot_type == PlotType.accel or plot_type == PlotType.gyro or plot_type == PlotType.angle:
+            figure, (axes, axes2, axes3) = plt.subplots(3, sharex=False, sharey=True)
+        else:
+            # figure, axes = plt.subplot()
+            figure = plt.figure()
+            axes = figure.add_subplot(111)
+
+        figure.suptitle(plot_type._name_ + " data plot", fontsize=15)
+
+        axes.grid(linestyle='-')
+        if plot_type == PlotType.pressure:
+            self._plot.pressure_flag = True
+            self._plot.pressure_axes = axes
+        elif plot_type == PlotType.image_flow:
+            self._plot.opt_flag = True
+            self._plot.opt_axes = axes
+        elif plot_type == PlotType.height:
+            axes.set_ylim(0, 2500)
+            self._plot.height_flag = True
+            self._plot.height_axes = axes
+        elif plot_type == PlotType.temperature:
+            self._plot.temp_flag = True
+            self._plot.temp_axes = axes
+
+        if axes3 is not None:
+            axes2.grid(linestyle='-')
+            axes3.grid(linestyle='-')
+            if plot_type == PlotType.gyro:
+                self._plot.imu_gyro_flag = True
+                self._plot.imu_gyro_roll_axes = axes
+                self._plot.imu_gyro_pitch_axes = axes2
+                self._plot.imu_gyro_yaw_axes = axes3
+
+            elif plot_type == PlotType.accel:
+                self._plot.imu_accel_flag = True
+                self._plot.imu_accel_x_axes = axes
+                self._plot.imu_accel_y_axes = axes2
+                self._plot.imu_accel_z_axes = axes3
+            elif plot_type == PlotType.angle:
+                axes.set_ylim(-180, 180)
+                axes2.set_ylim(-180, 180)
+                axes3.set_ylim(-180, 180)
+                self._plot.angle_flag = True
+                self._plot.angle_roll_axes = axes
+                self._plot.angle_pitch_axes = axes2
+                self._plot.angle_yaw_axes = axes3
+
 
     def lockState(func):
         """This function is a decorator for thread-locking.
@@ -1260,7 +1412,7 @@ class CoDrone:
 
         # Checks if a request arrived or not and requests again maximum 3 times, 0.15sec
         self._get_data_while(DataType.Range, self._timer.range)
-        return self._data.range
+        return self._data.range[-1]
 
     def get_pressure(self):
         """This is a getter function gets the data from the barometer sensor.
@@ -1270,7 +1422,7 @@ class CoDrone:
 
         # Checks if a request arrived or not and requests again maximum 3 times, 0.15sec
         self._get_data_while(DataType.Pressure, self._timer.pressure)
-        return self._data.pressure
+        return self._data.pressure[-1]
 
     def get_drone_temp(self):
         """This is a getter function gets the data from the drone’s temperature sensor.
@@ -1281,7 +1433,7 @@ class CoDrone:
 
         # Checks if a request arrived or not and requests again maximum 3 times, 0.15sec
         self._get_data_while(DataType.Pressure, self._timer.pressure)
-        return self._data.temperature
+        return self._data.temperature[-1]
 
     def get_angular_speed(self):
         """This function gets the data from the gyrometer sensor for the roll, pitch, and yaw angular speed.
