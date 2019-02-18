@@ -3,6 +3,7 @@ from struct import *
 import time
 from CoDrone.system import *
 
+
 # ISerializable Start
 
 
@@ -36,14 +37,15 @@ class Timer:
     def __init__(self):
         # [ time interval, variable to save start time ]
         self.address = [0, 0]
-        self.attitude = [0.1, 0]
+        self.attitude = [0.5, 0]
         self.battery = [5, 0]
         self.imu = [0, 0]
-        self.pressure = [3, 0]
+        self.pressure = [0, 0]
         self.trim = [0, 0]
         self.range = [0, 0]
         self.state = [0.1, 0]
         self.imageFlow = [0, 0]
+        self.motor = [0, 0]
 
         # Event states flag
         self.upsideDown = [5, 0]
@@ -61,20 +63,44 @@ class Data(EventStatesFunc):
         self._LowBatteryPercent = 50
 
         super().__init__()
+        self.star_time = 0
         self.timer = timer
         self.address = 0
         self.attitude = Angle(0, 0, 0)
+        self.attitude_roll = [0]
+        self.attitude_pitch = [0]
+        self.attitude_yaw = [0]
         self.accel = Axis(0, 0, 0)
+        self.accel_x = [0]
+        self.accel_y = [0]
+        self.accel_z = [0]
         self.batteryPercent = 0
         self.batteryVoltage = 0
         self.gyro = Angle(0, 0, 0)
+        self.gyro_roll = [0]
+        self.gyro_pitch = [0]
+        self.gyro_yaw = [0]
         self.imageFlow = Position(0, 0)
-        self.pressure = 0
+        self.imageFlow_x = [0]
+        self.imageFlow_y = [0]
+        self.pressure = [0]
         self.reversed = 0
-        self.temperature = 0
+        self.temperature = [0]
         self.trim = Flight(0, 0, 0, 0)
-        self.range = 0
+        self.range = [0]
+
+        self.range_time = [0.0]
+        self.attitude_time = [0.0]
+        self.imu_time = [0.0]
+        self.pressure_time = [0.0]
+        self.motor_time = [0.0]
         self.state = 0
+        self.motor = MotorVolt(0, 0, 0, 0)
+        self.m1 = [0]
+        self.m2 = [0]
+        self.m3 = [0]
+        self.m4 = [0]
+
         self.ack = Ack()
 
         # Depending on using flight commend
@@ -87,26 +113,45 @@ class Data(EventStatesFunc):
 
     def eventUpdateAttitude(self, data):
         self.attitude = Angle(data.roll, data.pitch, data.yaw)
-        self.timer.address[1] = time.time()
+        self.attitude_roll.append(self.attitude.ROLL)
+        self.attitude_pitch.append(self.attitude.PITCH)
+        self.attitude_yaw.append(self.attitude.YAW)
+        self.attitude_time.append(time.process_time()-self.star_time)
+        self.timer.attitude[1] = time.time()
+        #print("update Attitude")
 
     def eventUpdateBattery(self, data):
         self.batteryPercent = data.batteryPercent
         self.batteryVoltage = data.voltage
         self.timer.battery[1] = time.time()
+        #print("update battery")
 
     def eventUpdateImu(self, data):
         self.accel = Axis(data.accelX, data.accelY, data.accelZ)
+        self.accel_x.append(self.accel.X)
+        self.accel_y.append(self.accel.Y)
+        self.accel_z.append(self.accel.Z)
         self.gyro = Angle(data.gyroRoll, data.gyroPitch, data.gyroYaw)
+        self.gyro_roll.append(self.gyro.ROLL)
+        self.gyro_pitch.append(self.gyro.PITCH)
+        self.gyro_yaw.append(self.gyro.YAW)
+        self.imu_time.append(time.process_time()-self.star_time)
         self.timer.imu[1] = time.time()
+        #print("update imu")
 
     def eventUpdatePressure(self, data):
-        self.pressure = data.pressure
-        self.temperature = data.temperature
+        self.pressure.append(data.pressure)
+        self.temperature.append(data.temperature)
+        self.pressure_time.append(time.process_time()-self.star_time)
         self.timer.pressure[1] = time.time()
 
     def eventUpdateRange(self, data):
-        self.range = data.bottom
+        self.range.append(data.bottom)
         self.timer.range[1] = time.time()
+        self.range_time.append(time.process_time()-self.star_time)
+        # print(self.range)
+        # print(self.rangetime)
+        # print("update Range")
 
     def eventUpdateState_(self, data):
         self.reversed = data.sensorOrientation
@@ -160,11 +205,28 @@ class Data(EventStatesFunc):
 
     def eventUpdateImageFlow(self, data):
         self.imageFlow = Position(data.positionX, data.positionY)
+        self.imageFlow_x.append(self.imageFlow.X)
+        self.imageFlow_y.append(self.imageFlow.Y)
         self.timer.imageFlow[1] = time.time()
+        # print("update Flow")
 
     def eventUpdateAck(self, data):
         self.ack = data
 
+    def eventUpdateMotor(self, data):
+        self.motor = MotorVolt(data.motor[0].forward,
+                               data.motor[1].forward,
+                               data.motor[2].forward,
+                               data.motor[3].forward)
+        self.m1.append(self.motor.m1)
+        self.m2.append(self.motor.m2)
+        self.m3.append(self.motor.m3)
+        self.m4.append(self.motor.m4)
+        self.motor_time.append(time.process_time()-self.star_time)
+        # print('--------------time : {:4.2}---------------------'.format(self.motor_time[-1])
+        # print('Left front({:4})\tRight front({:4})'.format(self.m1[-1], self.m2[-1]))
+        # print("Left back ({:4})\tRight back ({:4})\n".format(self.m4[-1], self.m3[-1]))
+        # # print('----------------------------------------')
 
 # DataType Start
 class DataType(Enum):
@@ -186,7 +248,7 @@ class DataType(Enum):
     LightMode = 0x20  # set LED Mode
     LightMode2 = 0x21  # set LED Mode
     LightModeCommand = 0x22  # set LED Mode Commend
-    LightModeCommandIr = 0x23 # set LED Mode Commend IR
+    LightModeCommandIr = 0x23  # set LED Mode Commend IR
     LightModeColor = 0x24  # set LED Mode RGB color
     LightModeColor2 = 0x25  # set LED Mode RGB color
 
@@ -246,7 +308,15 @@ class DataType(Enum):
 
 # DataType End
 
-
+class PlotType(Enum):
+    pressure = 1
+    image_flow = 2
+    temperature = 3
+    height = 4
+    gyro = 5
+    accel = 6
+    angle = 7
+    motor = 8
 
 # CommandType Start
 
@@ -267,7 +337,7 @@ class CommandType(Enum):
     ResetHeading = 0x50  # head reset
     ClearGyroBias = 0x51  # clear trim and gyroBias
     ClearTrim = 0x52  # clear trim
-    Calibrate = 0x53 #calibration
+    Calibrate = 0x53  # calibration
 
     # Wireless Lan
     ResetWirelessLan = 0x70
@@ -280,7 +350,7 @@ class CommandType(Enum):
     AdvertisingStart = 0x82
     AdvertisingStop = 0x83
     TerminateConnection = 0x84
-    ClearBondList = 0x85 #clear bond device info
+    ClearBondList = 0x85  # clear bond device info
 
     # request
     Request = 0x90
@@ -301,7 +371,6 @@ class CommandType(Enum):
 
 
 # CommandType End
-
 
 
 # Header Start
@@ -334,7 +403,6 @@ class Header(ISerializable):
 
 
 # Header End
-
 
 
 # Common Start
@@ -386,6 +454,7 @@ class Ack(ISerializable):
 
         return data
 
+
 class Request(ISerializable):
     def __init__(self):
         self.dataType = DataType.None_
@@ -432,6 +501,7 @@ class Passcode(ISerializable):
 
         return data
 
+
 class Move():
     def __init__(self):
         self._roll = 0
@@ -439,7 +509,7 @@ class Move():
         self._yaw = 0
         self._throttle = 0
 
-    def _checkValue(self,value):
+    def _checkValue(self, value):
         try:
             value = int(value)
         except ValueError as err:
@@ -452,7 +522,7 @@ class Move():
         return value
 
     def getAll(self):
-        return self._roll,self._pitch, self._yaw, self._throttle
+        return self._roll, self._pitch, self._yaw, self._throttle
 
     def setAll(self, roll, pitch, yaw, throttle):
         self._roll = self._checkValue(roll)
@@ -608,7 +678,6 @@ class Command3(ISerializable):
 
 
 # Common End
-
 
 
 # Light Start
@@ -933,7 +1002,6 @@ class LightModeCommandIr(ISerializable):
         return data
 
 
-
 class LightModeColor(ISerializable):
     def __init__(self):
         self.mode = LightModeDrone.None_
@@ -1216,7 +1284,6 @@ class LightModeDefaultColor2(LightModeColor2):
 
 
 # Light End
-
 
 
 # Information Start
@@ -1736,7 +1803,6 @@ class Range(ISerializable):
 # Information End
 
 
-
 # Update
 
 
@@ -1857,7 +1923,6 @@ class UpdateLocationCorrect(ISerializable):
 
 
 # Update End
-
 
 
 # Link Start
@@ -2035,7 +2100,6 @@ class LinkPasscode(ISerializable):
 
 
 # Link End
-
 
 
 # Message Start

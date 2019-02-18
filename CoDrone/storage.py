@@ -1,5 +1,6 @@
 from CoDrone.protocol import *
 
+
 # EventHandler
 class EventHandler:
     def __init__(self):
@@ -69,4 +70,3 @@ class Parser:
         self.d[DataType.LinkPasscode] = LinkPasscode.parse
 
         self.d[DataType.Message] = Message.parse
-
