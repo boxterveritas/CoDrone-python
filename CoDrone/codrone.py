@@ -27,6 +27,10 @@ def convert_byte_array_to_string(data_array):
     return string
 
 
+def _boundary_check(value,low=0,high=100):
+    return low < value < high
+
+
 class _Plot:
     def __init__(self):
         self._plot_setup = False
@@ -782,47 +786,50 @@ class CoDrone:
                 else:
                     self._print_error(">> Could not find CoDrone.")
 
-        #     # using CoDrone number
-        #     else:
-        #         # check the name of connected device
-        #         target_device = None
-        #
-        #         if eq(device_name, "None"):
-        #             f = open('PairInfo', 'r')
-        #             device_name = f.readline()
-        #             f.close()
-        #         if len(self._devices) > 0:
-        #             if len(device_name) == 4:
-        #                 for i in range(len(self._devices)):
-        #                     if (len(self._devices[i].name) > 12) and (device_name == self._devices[i].name[8:12]):
-        #                         target_device = self._devices[i]
-        #                         break
-        #
-        #                 if target_device is not None:
-        #                     closest_device = target_device
-        #
-        #                     # if find the device, connect the device
-        #                     self._flagConnected = False
-        #                     self.send_link_connect(target_device.index)
-        #
-        #                     # wait for 5 seconds to connect the device
-        #                     for i in range(50):
-        #                         sleep(0.1)
-        #                         if self._flagConnected:
-        #                             break
-        #
-        #                     # connect and wait another 1.2 seconds.
-        #                     sleep(1.2)
-        #
-        #                 else:
-        #                     self._print_error(">> Could not find " + device_name + ".")
-        #
-        #             else:
-        #                 self._print_error(">> Device name length error(" + device_name + ").")
-        #
-        #         else:
-        #             self._print_error(">> Could not find CoDrone.")
-        #
+            # using CoDrone number
+            else:
+                # check the name of connected device
+                target_device = None
+                try:
+                    if eq(device_name, "None"):
+                        f = open('PairInfo', 'r')
+                        device_name = f.readline()
+                        f.close()
+                except FileNotFoundError:
+                    print("PairInfo file not exist Please try with number")
+
+                if len(self._devices) > 0:
+                    if len(device_name) == 4:
+                        for i in range(len(self._devices)):
+                            if (len(self._devices[i].name) > 12) and (device_name == self._devices[i].name[8:12]):
+                                target_device = self._devices[i]
+                                break
+
+                        if target_device is not None:
+                            closest_device = target_device
+
+                            # if find the device, connect the device
+                            self._flagConnected = False
+                            self.send_link_connect(target_device.index)
+
+                            # wait for 5 seconds to connect the device
+                            for i in range(50):
+                                sleep(0.1)
+                                if self._flagConnected:
+                                    break
+
+                            # connect and wait another 1.2 seconds.
+                            sleep(1.2)
+
+                        else:
+                            self._print_error(">> Could not find " + device_name + ".")
+
+                    else:
+                        self._print_error(">> Device name length error(" + device_name + ").")
+
+                else:
+                    self._print_error(">> Could not find CoDrone.")
+
             if self._flagConnected:
                 battery = self.get_battery_percentage()
                 print(">> Drone : [{}]\n>> Battery : [{}]".format(closest_device.name[8:12], battery))
@@ -2006,8 +2013,108 @@ class CoDrone:
     def reset_default_led(self):
         """This function sets the LED color of the eyes and arms back to red, which is the original default color.
         """
-        self.send_led_process(DataType.LightModeDefaultColor2, LightModeDrone.ArmHold, 255, 0, 0, 100,
-                              LightModeDrone.EyeHold, 255, 0, 0, 100)
+        try:
+            self.send_led_process(DataType.LightModeDefaultColor2, LightModeDrone.ArmHold, 255, 0, 0, 100,
+                                  LightModeDrone.EyeHold, 255, 0, 0, 100)
+        except:
+            self._print_error("you put wrong value")
+        finally:
+            self.close()
+
+    def arm_color(self, r=-1, g=-1, b=-1, brightness=-1):
+        try:
+            if isinstance(r, Color):
+                brightness = g
+                self.send_led_process(DataType.LightMode, LightModeDrone(Mode.SOLID.value + 0x30),r,brightness)
+            else:
+                self.send_led_process(DataType.LightModeColor, LightModeDrone(Mode.SOLID.value + 0x30),
+                                      r, g, b, brightness)
+        except:
+            self._print_error(">>> you put wrong parameter")  # print error message
+
+    def eye_color(self, r=-1, g=-1, b=-1, brightness=-1):
+        try:
+            if isinstance(r, Color):
+                brightness = g
+                self.send_led_process(DataType.LightMode, LightModeDrone(Mode.SOLID.value), r, brightness)
+            else:
+                self.send_led_process(DataType.LightModeColor, LightModeDrone(Mode.SOLID.value), r, g, b, brightness)
+        except:
+            self._print_error(">>> you put wrong parameter")  # print error message
+
+    def all_colors(self, r=-1, g=-1, b=-1, brightness=-1):
+        try:
+            if isinstance(r, Color):
+                brightness = g
+                self.send_led_process(DataType.LightMode2, LightModeDrone(Mode.SOLID.value), r, brightness,
+                                      LightModeDrone(Mode.SOLID.value + 0x30), r, brightness)
+            else:
+                self.send_led_process(DataType.LightModeColor2, LightModeDrone(Mode.SOLID.value), r, g, b, brightness,
+                                      LightModeDrone(Mode.SOLID.value + 0x30), r, g, b, brightness)
+        except:
+            self._print_error(">>> you put wrong parameter")  # print error message
+
+    def arm_default_color(self, r=-1, g=-1, b=-1, brightness=-1):
+        try:
+            self.send_led_process(DataType.LightModeDefaultColor, LightModeDrone(Mode.SOLID.value + 0x30),
+                                      r, g, b, brightness)
+        except:
+            self._print_error(">>> you put wrong parameter")  # print error message
+
+    def eye_default_color(self, r=-1, g=-1, b=-1, brightness=-1):
+        try:
+            self.send_led_process(DataType.LightModeDefaultColor, LightModeDrone(Mode.SOLID.value),
+                              r, g, b, brightness)
+        except:
+            self._print_error(">>> you put wrong parameter")  # print error message
+
+    def arm_pattern(self, r=-1, g=-1, b=-1, pattern=-1, interval=-1):
+        try:
+            if isinstance(r, Color):
+                pattern = g
+                interval = b
+
+                self.send_led_process(DataType.LightMode, LightModeDrone(pattern.value + 0x30), r, interval)
+            else:
+                self.send_led_process(DataType.LightModeColor, LightModeDrone(pattern.value + 0x30), r, g, b, interval)
+        except:
+            self._print_error(">>> you put wrong parameter")  # print error message
+
+    def eye_pattern(self, r=-1, g=-1, b=-1, pattern=-1, interval=-1):
+        try:
+            if isinstance(r, Color):
+                pattern = g
+                interval = b
+                self.send_led_process(DataType.LightMode, LightModeDrone(pattern.value), r, interval)
+            else:
+                self.send_led_process(DataType.LightModeColor, LightModeDrone(pattern.value), r, g, b, interval)
+        except:
+            self._print_error(">>> you put wrong parameter")  # print error message
+
+    def arm_default_pattern(self, r=-1, g=-1, b=-1, pattern=-1, interval=-1):
+        try:
+            self.send_led_process(DataType.LightModeDefaultColor, LightModeDrone(pattern.value + 0x30),
+                                  r, g, b, interval)
+        except:
+            self._print_error(">>> you put wrong parameter")  # print error message
+
+    def eye_default_pattern(self, r=-1, g=-1, b=-1, pattern=-1, interval=-1):
+        try:
+            self.send_led_process(DataType.LightModeDefaultColor, LightModeDrone(pattern.value), r, g, b, interval)
+        except:
+            self._print_error(">>> you put wrong parameter")  # print error message
+
+    def arm_strobe(self):
+        self.send_led_process(DataType.LightMode, LightModeDrone(Mode.STROBE.value + 0x30), Color.White, 0)
+
+    def eye_strobe(self):
+        self.send_led_process(DataType.LightMode, LightModeDrone(Mode.STROBE.value), Color.White, 0)
+
+    def arm_off(self):
+        self.send_led_process(DataType.LightMode, LightModeDrone(Mode.OFF.value + 0x30), Color.White, 0)
+
+    def eye_off(self):
+        self.send_led_process(DataType.LightMode, LightModeDrone(Mode.OFF.value), Color.White, 0)
 
     # LEDS --------- END
 

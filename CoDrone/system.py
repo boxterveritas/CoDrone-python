@@ -82,6 +82,7 @@ class Mode(Enum):
     SOLID = 0x11
     STROBE = 0x12
     BLINK = 0x13
+    DOUBLE_BLINK = 0x14
     BLINK_DOUBLE = 0x14
     DIMMING = 0x15
     PULSE = 0x16
