@@ -1,6 +1,6 @@
 from enum import Enum
 from CoDrone.crc import CRC16
-from time import clock
+from time import process_time
 
 from CoDrone.protocol import Header
 from CoDrone.protocol import DataType
@@ -42,7 +42,7 @@ class Receiver:
 
     def call(self, data):
 
-        now = clock() * 1000
+        now = process_time()*1000
 
         self.message = None
 
