@@ -15,6 +15,7 @@ import time
 
 
 def convert_byte_array_to_string(data_array):
+    """ ovaj deo prebacuje byte array to string """
     if data_array is None:
         return ""
 
